@@ -32,6 +32,7 @@ import {
   MoreHorizontal,
   SunMoon,
   LogOut,
+  ArrowDownUp,
 } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { toggleThemeWithTransition } from "@/lib/theme-transition";
@@ -39,7 +40,11 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Skeleton } from "@/components/ui/skeleton-card";
 import { api } from "@/lib/api";
 import { prefetchRoute } from "@/lib/prefetch-routes";
-import { getTodoEvents, isEventToday } from "@/lib/calendar-utils";
+import {
+  getTodoEvents,
+  isEventToday,
+  resolveNextOccurrenceDate,
+} from "@/lib/calendar-utils";
 import { useTodoCompletions } from "@/hooks/useTodoCompletions";
 import { AlmanacCard } from "@/components/almanac/AlmanacCard";
 import { TimeMachineCard } from "@/components/dashboard/TimeMachineCard";
@@ -73,6 +78,8 @@ export function Dashboard() {
   const [editingEvent, setEditingEvent] = useState<Event | undefined>();
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // 倒计时排序：默认从近到远（升序），点击切换为从远到近。
+  const [sortDesc, setSortDesc] = useState(false);
   const [conflicts, setConflicts] = useState<
     { date: string; count: number; names: string[] }[]
   >([]);
@@ -136,6 +143,16 @@ export function Dashboard() {
 
   const { completedKeys } = useTodoCompletions();
   const { timezone } = useTimezone();
+  // 倒计时排序：按「下次发生日期」排，默认从近到远（升序），可切换为从远到近。
+  const sortedEvents = useMemo(() => {
+    const ref = new Date();
+    return [...events].sort((a, b) => {
+      const da = resolveNextOccurrenceDate(a, ref, timezone);
+      const db = resolveNextOccurrenceDate(b, ref, timezone);
+      const cmp = da < db ? -1 : da > db ? 1 : 0;
+      return sortDesc ? -cmp : cmp;
+    });
+  }, [events, sortDesc, timezone]);
   // v2.27 B-1：按天稳定化的 dayKey + useMemo —— 此前每次渲染都重跑 O(n) 窗口计算
   const dayKey = `${new Date().getFullYear()}-${new Date().getMonth()}-${new Date().getDate()}`;
   const todoCount = useMemo(
@@ -801,6 +818,20 @@ export function Dashboard() {
           </div>
           <div className="flex items-center gap-3 glass px-2 py-2 rounded-2xl ring-1 ring-white/20">
             <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl"
+              aria-label={
+                sortDesc
+                  ? "当前按从远到近排序，点击切换为从近到远"
+                  : "当前按从近到远排序，点击切换为从远到近"
+              }
+              title={sortDesc ? "从远到近（点击切换）" : "从近到远（点击切换）"}
+              onClick={() => setSortDesc((v) => !v)}
+            >
+              <ArrowDownUp size={18} />
+            </Button>
+            <Button
               variant={batchMode ? "secondary" : "ghost"}
               className="rounded-xl transition-all"
               onClick={() => {
@@ -866,7 +897,7 @@ export function Dashboard() {
             initial="hidden"
             animate="visible"
           >
-            {events.map((event) => (
+            {sortedEvents.map((event) => (
               <motion.div key={event.id} variants={itemVariants}>
                 <EventCard
                   event={event}

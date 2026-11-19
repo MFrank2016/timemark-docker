@@ -113,7 +113,7 @@ export const BROADCAST_TEMPLATE_CATEGORIES: BroadcastTemplateCategory[] = [
 
 export function renderBroadcastTemplate(
   template: string,
-  vars: { contact_name?: string; subject?: string },
+  vars: { contact_name?: string; subject?: string; lunar_date?: string; calendar_type?: string },
 ): string {
   const contactName = vars.contact_name?.trim() || '你好';
   const map: Record<string, string> = {
@@ -122,6 +122,11 @@ export function renderBroadcastTemplate(
     '{{联系人}}': contactName,
     '{{subject}}': vars.subject || '',
     '{{主题}}': vars.subject || '',
+    // 农历变量仅用于预览；真实群发不传，替换为空串，与现状一致
+    '{{lunar_date}}': vars.lunar_date || '',
+    '{{农历}}': vars.lunar_date || '',
+    '{{calendar_type}}': vars.calendar_type || '',
+    '{{历法}}': vars.calendar_type || '',
   };
   let result = template;
   for (const [key, value] of Object.entries(map)) {

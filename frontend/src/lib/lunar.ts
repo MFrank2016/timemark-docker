@@ -1,7 +1,6 @@
-import { Lunar, Solar } from 'lunar-javascript';
-import type { Event } from '@timemark/shared';
-import { parseLunarDateParts } from '@timemark/shared/templates';
-import { getHolidayCoverage } from './chinese-holidays';
+import { Lunar, Solar } from "lunar-javascript";
+import type { Event } from "@timemark/shared";
+import { parseLunarDateParts } from "@timemark/shared/templates";
 
 export interface LunarDate {
   year: number;
@@ -10,18 +9,58 @@ export interface LunarDate {
   isLeap: boolean;
 }
 
-const LUNAR_MONTHS = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月'];
+const LUNAR_MONTHS = [
+  "正月",
+  "二月",
+  "三月",
+  "四月",
+  "五月",
+  "六月",
+  "七月",
+  "八月",
+  "九月",
+  "十月",
+  "冬月",
+  "腊月",
+];
 const LUNAR_DAYS = [
-  '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
-  '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
-  '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十',
+  "初一",
+  "初二",
+  "初三",
+  "初四",
+  "初五",
+  "初六",
+  "初七",
+  "初八",
+  "初九",
+  "初十",
+  "十一",
+  "十二",
+  "十三",
+  "十四",
+  "十五",
+  "十六",
+  "十七",
+  "十八",
+  "十九",
+  "二十",
+  "廿一",
+  "廿二",
+  "廿三",
+  "廿四",
+  "廿五",
+  "廿六",
+  "廿七",
+  "廿八",
+  "廿九",
+  "三十",
 ];
 
 function monthDayText(month: number, day: number, isLeap: boolean): string {
   const monthName = LUNAR_MONTHS[month - 1];
   const dayName = LUNAR_DAYS[day - 1];
-  if (!monthName || !dayName) return '';
-  return `${isLeap ? '闰' : ''}${monthName}${dayName}`;
+  if (!monthName || !dayName) return "";
+  return `${isLeap ? "闰" : ""}${monthName}${dayName}`;
 }
 
 export function solarToLunar(date: Date): LunarDate {
@@ -29,7 +68,9 @@ export function solarToLunar(date: Date): LunarDate {
     date.getFullYear(),
     date.getMonth() + 1,
     date.getDate(),
-    12, 0, 0
+    12,
+    0,
+    0,
   );
   const lunar = solar.getLunar();
   const month = lunar.getMonth();
@@ -45,26 +86,47 @@ export function lunarToSolar(lunar: LunarDate): Date {
   const month = lunar.isLeap ? -lunar.month : lunar.month;
   const lunarDate = Lunar.fromYmd(lunar.year, month, lunar.day);
   const solar = lunarDate.getSolar();
-  return new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), 12, 0, 0);
+  return new Date(
+    solar.getYear(),
+    solar.getMonth() - 1,
+    solar.getDay(),
+    12,
+    0,
+    0,
+  );
 }
 
 export function getNextLunarOccurrence(lunar: LunarDate): Date {
   const now = new Date();
   const currentYear = now.getFullYear();
   const month = lunar.isLeap ? -lunar.month : lunar.month;
-  
+
   // 尝试今年的农历日期
   let lunarDate = Lunar.fromYmd(currentYear, month, lunar.day);
   let solar = lunarDate.getSolar();
-  let targetDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), 12, 0, 0);
-  
+  let targetDate = new Date(
+    solar.getYear(),
+    solar.getMonth() - 1,
+    solar.getDay(),
+    12,
+    0,
+    0,
+  );
+
   // 如果今年的日期已过，使用明年的
   if (targetDate < now) {
     lunarDate = Lunar.fromYmd(currentYear + 1, month, lunar.day);
     solar = lunarDate.getSolar();
-    targetDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), 12, 0, 0);
+    targetDate = new Date(
+      solar.getYear(),
+      solar.getMonth() - 1,
+      solar.getDay(),
+      12,
+      0,
+      0,
+    );
   }
-  
+
   return targetDate;
 }
 
@@ -75,7 +137,7 @@ export function formatLunarMonthDay(lunar: LunarDate): string {
 
 export function formatLunarDate(lunar: LunarDate): string {
   const monthDay = formatLunarMonthDay(lunar);
-  return monthDay ? `${lunar.year}年${monthDay}` : String(lunar.year ?? '');
+  return monthDay ? `${lunar.year}年${monthDay}` : String(lunar.year ?? "");
 }
 
 export interface EventLunarLabel {
@@ -96,37 +158,55 @@ export interface EventLunarLabel {
  * - 公历事件、或无效/缺失且无法回推时优雅降级为空标签。
  */
 export function resolveEventLunarLabel(
-  event: Pick<Event, 'lunarDate' | 'date' | 'calendarType'>,
+  event: Pick<Event, "lunarDate" | "date" | "calendarType">,
 ): EventLunarLabel {
-  if (event.calendarType !== 'lunar' && event.calendarType !== 'both') {
-    return { label: '', error: null };
+  if (event.calendarType !== "lunar" && event.calendarType !== "both") {
+    return { label: "", error: null };
   }
 
   const persisted = parseLunarDateParts(event.lunarDate);
   if (persisted) {
-    const monthDay = monthDayText(persisted.month, persisted.day, persisted.isLeap);
+    const monthDay = monthDayText(
+      persisted.month,
+      persisted.day,
+      persisted.isLeap,
+    );
     if (monthDay) return { label: `农历${monthDay}`, error: null };
   }
 
-  const ymd = String(event.date || '').slice(0, 10);
-  const [year, month, day] = ymd.split('-').map(Number);
+  const ymd = String(event.date || "").slice(0, 10);
+  const [year, month, day] = ymd.split("-").map(Number);
   if (
-    !Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day) ||
-    month < 1 || month > 12 || day < 1 || day > 31
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
   ) {
-    return { label: '', error: null };
+    return { label: "", error: null };
   }
 
-  const { minYear, maxYear } = getHolidayCoverage();
-  if (year < minYear || year > maxYear) {
-    return { label: '', error: `农历数据不可用（仅支持 ${minYear}–${maxYear} 年）` };
+  // 农历换算用的是 lunar-javascript（实测支持 1900–2100），与 almanac.ts 的
+  // ALMANAC_MIN_YEAR/MAX_YEAR 保持一致。此前误用 chinese-days 节假日数据的
+  // 覆盖范围（2004–2026），导致 2027 等年份在 lunarDate 缺失时被错误拦截。
+  const LUNAR_MIN_YEAR = 1900;
+  const LUNAR_MAX_YEAR = 2100;
+  if (year < LUNAR_MIN_YEAR || year > LUNAR_MAX_YEAR) {
+    return {
+      label: "",
+      error: `农历数据不可用（仅支持 ${LUNAR_MIN_YEAR}–${LUNAR_MAX_YEAR} 年）`,
+    };
   }
 
   try {
     const lunar = solarToLunar(new Date(year, month - 1, day, 12, 0, 0));
     const monthDay = formatLunarMonthDay(lunar);
-    return monthDay ? { label: `农历${monthDay}`, error: null } : { label: '', error: '农历数据不可用' };
+    return monthDay
+      ? { label: `农历${monthDay}`, error: null }
+      : { label: "", error: "农历数据不可用" };
   } catch {
-    return { label: '', error: '农历数据不可用' };
+    return { label: "", error: "农历数据不可用" };
   }
 }

@@ -231,13 +231,14 @@ export function EventCard({
         </div>
         <div className="shrink-0 flex items-center gap-1">
           {event.reminderConfig?.enabled && (
-            <BellRing
-              size={16}
-              role="img"
-              aria-label="已启用提醒"
-              title="已启用提醒"
-              className="shrink-0 text-emerald-500 dark:text-emerald-400 md:hidden"
-            />
+            <span className="shrink-0 md:hidden" title="已启用提醒">
+              <BellRing
+                size={16}
+                role="img"
+                aria-label="已启用提醒"
+                className="text-emerald-500 dark:text-emerald-400"
+              />
+            </span>
           )}
           {!selectable && (
             <ActionMenu

@@ -159,8 +159,15 @@ export async function listBroadcastCampaigns(userId: number) {
 }
 
 export function renderBroadcastPreview(subject: string, html: string) {
+  // 预览时先用样例数据做一次模板变量替换（含农历），再截断并消毒
+  const rendered = renderBroadcastTemplate(html, {
+    contact_name: '张三',
+    subject,
+    lunar_date: '农历八月十五',
+    calendar_type: '农历',
+  });
   return {
     subject: escapeHtml(subject),
-    htmlPreview: sanitizeHtmlPreview(html.slice(0, 2000)),
+    htmlPreview: sanitizeHtmlPreview(rendered.slice(0, 2000)),
   };
 }

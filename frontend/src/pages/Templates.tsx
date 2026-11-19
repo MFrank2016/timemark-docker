@@ -138,6 +138,10 @@ export default function Templates() {
       '{{days_until}}': '3',
       '{{blessing}}': '生日快乐',
       '{{reminder_time}}': '09:00',
+      '{{lunar_date}}': '农历八月十五',
+      '{{calendar_type}}': '农历',
+      '{{农历}}': '农历八月十五',
+      '{{历法}}': '农历',
     };
     
     let result = content;
