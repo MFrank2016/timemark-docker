@@ -36,6 +36,9 @@ frontend/public/search-index.json
 
 # Test files with credentials
 test-login.json
+
+# SQL dialect 探针产物（scripts/probe-sql-compile.mjs 生成，仅本地回归对比用）
+backend/scripts/.probe-sql-compile-report.json
 test-api*.ps1
 
 # Playwright artifacts

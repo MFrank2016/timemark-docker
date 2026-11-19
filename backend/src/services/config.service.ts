@@ -849,9 +849,9 @@ export async function generateApiKey(userId: number): Promise<string> {
   const hash = createHash('sha256').update(plaintext).digest('hex');
 
   await query(
-    `INSERT INTO user_configs (user_id, api_key_hash)
+    `INSERT INTO user_configs (user_id, api_key)
      VALUES ($1, $2)
-     ON CONFLICT (user_id) DO UPDATE SET api_key_hash = EXCLUDED.api_key_hash`,
+     ON CONFLICT (user_id) DO UPDATE SET api_key = EXCLUDED.api_key`,
     [userId, hash]
   );
 
@@ -863,7 +863,7 @@ export async function generateApiKey(userId: number): Promise<string> {
  */
 export async function revokeApiKey(userId: number): Promise<void> {
   await query(
-    `UPDATE user_configs SET api_key_hash = NULL, api_key = NULL WHERE user_id = $1`,
+    `UPDATE user_configs SET api_key = NULL WHERE user_id = $1`,
     [userId]
   );
 }

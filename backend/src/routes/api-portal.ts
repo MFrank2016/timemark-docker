@@ -120,7 +120,7 @@ apiV1.get('/events', async (c) => {
     const params: unknown[] = [auth.userId, limit];
     // 全静态 SQL：日期过滤用占位符 + NULL 旁路，不拼接用户输入
     let sql = `SELECT id, name, type, date, calendar_type, lunar_date, person_name,
-                      reminder_times, created_at
+                      created_at
                FROM events
                WHERE user_id = $1
                  AND ($3::text IS NULL OR date >= $3::date)
@@ -151,7 +151,7 @@ apiV1.get('/events/:id', async (c) => {
   }
   const result = await query(
     `SELECT id, name, type, date, calendar_type, lunar_date, person_name,
-            reminder_times, reminder_config, created_at
+            reminder_config, created_at
      FROM events WHERE id = $1 AND user_id = $2`,
     [id, auth.userId],
   );
