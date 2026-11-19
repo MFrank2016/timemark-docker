@@ -739,7 +739,7 @@ export default function Channels() {
               总成功率 {overall}%
             </span>
             {statsRuns > 0 && (
-              <span className="text-xs text-slate-400 font-normal">共 {statsRuns} 次分发（最多统计最近 5000 条日志）</span>
+              <span className="text-xs text-hint font-normal">共 {statsRuns} 次分发（最多统计最近 5000 条日志）</span>
             )}
             <button
               type="button"
@@ -770,7 +770,7 @@ export default function Channels() {
                       style={{ width: `${Math.max(s.successRate, 2)}%` }}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-400">
+                  <p className="mt-1.5 text-xs text-hint">
                     发送 {s.sent} 次 · 成功 {s.ok} · 失败 {s.failed}
                   </p>
                 </div>
@@ -791,7 +791,7 @@ export default function Channels() {
                     return (
                       <span key={id} className="text-xs px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50">
                         {account?.name || `账户 #${id}`} <span className={`font-semibold ${cls}`}>{stat.successRate}%</span>
-                        <span className="text-slate-400 ml-1">（{stat.sent} 次）</span>
+                        <span className="text-hint ml-1">（{stat.sent} 次）</span>
                       </span>
                     );
                   })}
@@ -900,7 +900,7 @@ export default function Channels() {
                     </>
                   )}
                   {connectionStatus[account.id]?.timestamp && (
-                    <span className="text-[10px] text-slate-400" title={connectionStatus[account.id]?.message}>
+                    <span className="text-[10px] text-hint" title={connectionStatus[account.id]?.message}>
                       {new Date(connectionStatus[account.id].timestamp!).toLocaleTimeString()}
                     </span>
                   )}
@@ -932,7 +932,7 @@ export default function Channels() {
                   const mins = Math.round((Date.now() - new Date(account.last_test_at).getTime()) / 60000);
                   parts.push(`上次测试 ${mins < 1 ? '刚刚' : mins < 60 ? `${mins} 分钟前` : mins < 1440 ? `${Math.round(mins / 60)} 小时前` : `${Math.round(mins / 1440)} 天前`}`);
                 }
-                return parts.length ? <span className="ml-2 text-slate-400">{parts.join(' · ')}</span> : null;
+                return parts.length ? <span className="ml-2 text-hint">{parts.join(' · ')}</span> : null;
               })()}
             </span>
             <div className="flex gap-2">
@@ -1014,7 +1014,7 @@ export default function Channels() {
         }
       />
 
-      <main id="main-content" className="max-w-[90rem] mx-auto px-6 py-10 mt-2" tabIndex={-1}>
+      <main id="main-content" className="max-w-[90rem] mx-auto px-6 pb-10" tabIndex={-1}>
         <p className="text-sm text-hint mb-8 max-w-3xl">
           通知渠道均为可选：愿意用哪种就添加并绑定哪种，不添加也能正常创建事件。需要时点击「添加渠道」；配置说明见
           {' '}

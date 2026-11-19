@@ -78,7 +78,7 @@ export default function Analytics() {
     <div className="min-h-screen pb-24">
       <PageHeader title="数据看板" subtitle="近 30 天提醒与事件概览" backTo="/dashboard" maxWidth="max-w-5xl" />
 
-      <main className="max-w-5xl mx-auto px-4 mt-8 space-y-6">
+      <main id="main-content" className="max-w-5xl mx-auto px-4 space-y-6" tabIndex={-1}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="glass-panel border-0">
             <CardContent className="pt-6">

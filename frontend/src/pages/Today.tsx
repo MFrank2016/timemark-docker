@@ -64,7 +64,7 @@ export default function Today() {
         actions={<TodayCardSettings {...todayCards} />}
       />
 
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8" tabIndex={-1}>
+      <main id="main-content" className="mx-auto max-w-7xl px-4 pb-8" tabIndex={-1}>
         {todayCards.visibleOrder.length === 0 ? (
           <div className="glass-panel rounded-3xl py-16 text-center">
             <p className="font-semibold text-slate-700 dark:text-slate-200">已隐藏全部卡片</p>

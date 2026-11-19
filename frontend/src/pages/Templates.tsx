@@ -165,7 +165,7 @@ export default function Templates() {
         }
       />
 
-      <main className="max-w-3xl mx-auto px-6 py-10 mt-2">
+      <main id="main-content" className="max-w-3xl mx-auto px-6 pb-10" tabIndex={-1}>
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-slate-300 border-t-primary-500 rounded-full animate-spin" />
@@ -265,7 +265,7 @@ export default function Templates() {
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-2">不写变量也行，直接写文字也可以！</p>
+                <p className="text-[10px] text-hint mt-2">不写变量也行，直接写文字也可以！</p>
               </div>
 
               {/* 实时预览 */}

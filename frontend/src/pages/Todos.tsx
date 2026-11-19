@@ -199,7 +199,7 @@ export default function Todos() {
 
 
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as 'active' | 'history')}>
 

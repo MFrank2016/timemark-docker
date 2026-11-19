@@ -388,7 +388,7 @@ export default function Contacts() {
   };
 
   return (
-    <div id="main-content" className="min-h-screen p-4 md:p-8 max-w-3xl mx-auto pb-24">
+    <div id="main-content" className="min-h-screen p-4 md:p-8 max-w-3xl mx-auto pb-24" tabIndex={-1}>
       <PageHeader
         title="固定联系人"
         subtitle="支持多个邮箱/手机，绑定通知渠道后可快捷发信"
@@ -545,7 +545,7 @@ export default function Contacts() {
                   <Badge key={m.email} variant="secondary">{m.email}</Badge>
                 ))}
                 {membersFor(g.id).length === 0 && (
-                  <span className="text-xs text-slate-400">暂无成员邮箱</span>
+                  <span className="text-xs text-hint">暂无成员邮箱</span>
                 )}
               </div>
             </div>
@@ -603,7 +603,7 @@ export default function Contacts() {
                     <option key={g.value} value={g.value}>{g.label}</option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-400 mt-1">非亲属时用于先生/女士尊称</p>
+                <p className="text-xs text-hint mt-1">非亲属时用于先生/女士尊称</p>
               </div>
             </div>
 
@@ -618,12 +618,12 @@ export default function Contacts() {
                   onChange={(e) => setForm((prev) => ({ ...prev, birthDate: e.target.value }))}
                   aria-label="联系人生日"
                 />
-                <p className="text-xs text-slate-400 mt-1">填写后每年生日自动发祝福（可免建生日事件）</p>
+                <p className="text-xs text-hint mt-1">填写后每年生日自动发祝福（可免建生日事件）</p>
               </div>
               <div className="flex items-center justify-between sm:justify-end sm:gap-3">
                 <div>
                   <label className="text-sm font-medium mb-1 block">退出祝福</label>
-                  <p className="text-xs text-slate-400">不为 TA 自动发生日祝福</p>
+                  <p className="text-xs text-hint">不为 TA 自动发生日祝福</p>
                 </div>
                 <Switch
                   checked={form.greetingOptOut}
@@ -695,9 +695,9 @@ export default function Contacts() {
                           className="rounded"
                         />
                         <span>{acc.name}</span>
-                        <span className="text-xs text-slate-400">({CHANNEL_TYPE_LABELS[acc.type] || acc.type})</span>
+                        <span className="text-xs text-hint">({CHANNEL_TYPE_LABELS[acc.type] || acc.type})</span>
                         {channelHint(acc) && (
-                          <span className="text-xs text-slate-400">{channelHint(acc)}</span>
+                          <span className="text-xs text-hint">{channelHint(acc)}</span>
                         )}
                       </label>
                     ))

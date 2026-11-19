@@ -127,7 +127,7 @@ export default function ApiPortal() {
         refreshing={loading}
       />
 
-      <main className="max-w-4xl mx-auto px-6 space-y-8">
+      <main id="main-content" className="max-w-4xl mx-auto px-6 space-y-8" tabIndex={-1}>
         {error && (
           <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-900/10 px-4 py-2 text-sm text-red-600 dark:text-red-300">
             {error}
@@ -170,7 +170,7 @@ export default function ApiPortal() {
                 创建
               </Button>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-hint">
               默认只给 read；write 才能调写端点；admin 仅内部使用。Token 只在创建成功时完整显示一次，请立即保存。
             </p>
 
@@ -196,7 +196,7 @@ export default function ApiPortal() {
                   <li key={t.id} className="rounded-xl border border-slate-200/70 dark:border-slate-700/50 px-4 py-3 flex flex-wrap items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{t.name}</p>
-                      <p className="text-xs text-slate-400 font-mono">{t.masked ?? `…${t.id.slice(-4)}`}</p>
+                      <p className="text-xs text-hint font-mono">{t.masked ?? `…${t.id.slice(-4)}`}</p>
                     </div>
                     <div className="flex gap-1">
                       {t.scopes.map((s) => (
@@ -274,7 +274,7 @@ export default function ApiPortal() {
                     <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                   )}
                   <span className="font-mono text-slate-700 dark:text-slate-200 truncate">{a.tool ?? '—'}</span>
-                  <span className="text-slate-400 ml-auto shrink-0">{a.created_at ? new Date(a.created_at).toLocaleString('zh-CN') : ''}</span>
+                  <span className="text-hint ml-auto shrink-0">{a.created_at ? new Date(a.created_at).toLocaleString('zh-CN') : ''}</span>
                 </li>
               ))}
             </ul>

@@ -27,7 +27,7 @@ export default function DataHealth() {
         refreshing={loading}
       />
 
-      <main id="main-content" className="mx-auto max-w-4xl px-4 py-8" tabIndex={-1}>
+      <main id="main-content" className="mx-auto max-w-4xl px-4 pb-8" tabIndex={-1}>
         <Card className="mb-6 rounded-3xl p-6">
           <div className="flex items-center gap-4">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400" aria-hidden>

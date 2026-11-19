@@ -449,7 +449,7 @@ export default function Maintenance() {
         }
       />
 
-      <main id="main-content" className="max-w-5xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-5xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         <section aria-label="保养概览" className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard testId="maintenance-summary-overdue" label="已逾期" value={summary.overdue} hint="已过下次保养日" tone="destructive" />
           <SummaryCard testId="maintenance-summary-soon" label="30 天内" value={summary.soon} hint="即将到期" />

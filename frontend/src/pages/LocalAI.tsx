@@ -195,7 +195,7 @@ export function LocalAI() {
     <div className="min-h-screen pb-24">
       <PageHeader title="本地 AI（实验）" subtitle="模型跑在浏览器 · 数据不出本机" maxWidth="max-w-4xl" />
 
-      <main className="max-w-4xl mx-auto px-6 mt-6 space-y-5">
+      <main id="main-content" className="max-w-4xl mx-auto px-6 space-y-5" tabIndex={-1}>
         {/* 对话（v2.28：提升为首卡 —— 此前排第 3，移动端被顶出视口，是"看不到后续对话"的主因） */}
         <section className="glass-panel rounded-[2rem] p-6 ring-1 ring-black/5 dark:ring-white/10">
           {/* v2.30：头部按钮行 flex-wrap——窄屏上"清空对话"不再被挤出画面 */}
@@ -257,7 +257,7 @@ export function LocalAI() {
             aria-live="polite"
           >
             {history.length === 0 && (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-hint">
                 示例：「妈妈的生日是什么时候」「下个月有什么到期」「总结一下我的事件」。回答只依据你的知识库，末尾带来源编号。
               </p>
             )}
@@ -371,7 +371,7 @@ export function LocalAI() {
                         {m.source === 'remote' && <Download size={13} className="text-slate-400 shrink-0" />}
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{m.description}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">{formatWeightsMB(m.weightsBytes)} · {m.source === 'bundled' ? '内置' : '首次点击下载'}</p>
+                      <p className="text-[11px] text-hint mt-1">{formatWeightsMB(m.weightsBytes)} · {m.source === 'bundled' ? '内置' : '首次点击下载'}</p>
                     </button>
                   );
                 })}
@@ -385,7 +385,7 @@ export function LocalAI() {
                   <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.max(Math.round(modelProgress * 100), 2)}%` }} />
                 </div>
               )}
-              <p className="text-xs text-slate-400">{modelStatus}</p>
+              <p className="text-xs text-hint">{modelStatus}</p>
             </div>
           )}
         </section>
@@ -410,7 +410,7 @@ export function LocalAI() {
                   <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.max(Math.round(indexProgress), 2)}%` }} />
                 </div>
               )}
-              <p className="text-xs text-slate-400">{indexStatus}</p>
+              <p className="text-xs text-hint">{indexStatus}</p>
             </div>
           )}
           {indexSummary && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{indexSummary}</p>}
@@ -587,7 +587,7 @@ function GreetingDraftTool({
           </Button>
         )}
       </div>
-      <p className="text-xs text-slate-400 mt-2">生成在你浏览器的 GPU 上完成，内容不出本机。要直接发给联系人请用「联系人」页或设置里的祝福草稿流程。</p>
+      <p className="text-xs text-hint mt-2">生成在你浏览器的 GPU 上完成，内容不出本机。要直接发给联系人请用「联系人」页或设置里的祝福草稿流程。</p>
     </section>
   );
 }

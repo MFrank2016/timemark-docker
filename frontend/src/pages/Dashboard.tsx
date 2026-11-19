@@ -1,80 +1,135 @@
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '@/stores/auth.store';
-import { useEventStore } from '@/stores/event.store';
-import { Button } from '@/components/ui/button';
-import { EventCard } from '@/components/events/EventCard';
-import { EventForm } from '@/components/events/EventForm';
-import { useNavigate } from 'react-router-dom';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { RealtimeClock, useTimezone } from '@/components/RealtimeClock';
-import { TimezoneSelector } from '@/components/TimezoneSelector';
-import { ProfileSwitcher } from '@/components/ProfileSwitcher';
-import { useProfileStore } from '@/stores/profile.store';
-import type { Event, CreateEventRequest } from '@timemark/shared';
-import { Settings, Bell, Plus, Download, Calendar, BarChart2, ListChecks, Shield, Upload, Users, Mail, Inbox, AlarmClock, Package, Wrench, Target } from 'lucide-react';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
-import { Skeleton } from '@/components/ui/skeleton-card';
-import { api } from '@/lib/api';
-import { prefetchRoute } from '@/lib/prefetch-routes';
-import { getTodoEvents, isEventToday } from '@/lib/calendar-utils';
-import { useTodoCompletions } from '@/hooks/useTodoCompletions';
-import { AlmanacCard } from '@/components/almanac/AlmanacCard';
-import { TimeMachineCard } from '@/components/dashboard/TimeMachineCard';
-import { RecentNotificationsCard } from '@/components/dashboard/RecentNotifications';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "@/stores/auth.store";
+import { useEventStore } from "@/stores/event.store";
+import { Button } from "@/components/ui/button";
+import { EventCard } from "@/components/events/EventCard";
+import { EventForm } from "@/components/events/EventForm";
+import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { RealtimeClock, useTimezone } from "@/components/RealtimeClock";
+import { TimezoneSelector } from "@/components/TimezoneSelector";
+import { ProfileSwitcher } from "@/components/ProfileSwitcher";
+import { useProfileStore } from "@/stores/profile.store";
+import type { Event, CreateEventRequest } from "@timemark/shared";
+import {
+  Settings,
+  Bell,
+  Plus,
+  Download,
+  Calendar,
+  BarChart2,
+  ListChecks,
+  Shield,
+  Upload,
+  Users,
+  Mail,
+  Inbox,
+  AlarmClock,
+  Package,
+  Wrench,
+  Target,
+  MoreHorizontal,
+  SunMoon,
+  LogOut,
+} from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { toggleThemeWithTransition } from "@/lib/theme-transition";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { Skeleton } from "@/components/ui/skeleton-card";
+import { api } from "@/lib/api";
+import { prefetchRoute } from "@/lib/prefetch-routes";
+import { getTodoEvents, isEventToday } from "@/lib/calendar-utils";
+import { useTodoCompletions } from "@/hooks/useTodoCompletions";
+import { AlmanacCard } from "@/components/almanac/AlmanacCard";
+import { TimeMachineCard } from "@/components/dashboard/TimeMachineCard";
+import { RecentNotificationsCard } from "@/components/dashboard/RecentNotifications";
 
-const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
-const itemVariants = { hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.2 } } };
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+};
 
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { events, loading, fetchEvents, createEvent, updateEvent, deleteEvent, deleteEventsBatch, testSendEvent } = useEventStore();
+  const {
+    events,
+    loading,
+    fetchEvents,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    deleteEventsBatch,
+    testSendEvent,
+  } = useEventStore();
   // 档案切换器（checkbox 70）：切换后重新拉取事件（fetchEvents 内部会带上 profileId）
   const profileId = useProfileStore((s) => s.profileId);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | undefined>();
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [conflicts, setConflicts] = useState<{ date: string; count: number; names: string[] }[]>([]);
+  const [conflicts, setConflicts] = useState<
+    { date: string; count: number; names: string[] }[]
+  >([]);
   // v2.27：冲突列表默认只显 3 组，可展开
   const [showAllConflicts, setShowAllConflicts] = useState(false);
   const [inboxUnread, setInboxUnread] = useState(0);
   // v2.25: 静默时段状态提示——静默中的通知不丢（cron 照常投递记录），只是延迟到窗口结束
-  const [quietHours, setQuietHours] = useState<{ start: string | null; end: string | null } | null>(null);
+  const [quietHours, setQuietHours] = useState<{
+    start: string | null;
+    end: string | null;
+  } | null>(null);
 
   useEffect(() => {
-    api.get<{ quiet_hours_start?: string | null; quiet_hours_end?: string | null }>('/config')
+    api
+      .get<{
+        quiet_hours_start?: string | null;
+        quiet_hours_end?: string | null;
+      }>("/config")
       .then((cfg) => {
         if (cfg?.quiet_hours_start && cfg?.quiet_hours_end) {
-          setQuietHours({ start: cfg.quiet_hours_start, end: cfg.quiet_hours_end });
+          setQuietHours({
+            start: cfg.quiet_hours_start,
+            end: cfg.quiet_hours_end,
+          });
         }
       })
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    prefetchRoute('/inbox');
-    prefetchRoute('/channels');
-    prefetchRoute('/calendar');
-    prefetchRoute('/todos');
-    prefetchRoute('/expiry');
-    prefetchRoute('/inventory');
-    prefetchRoute('/maintenance');
-    prefetchRoute('/goals');
-    prefetchRoute('/settings');
+    prefetchRoute("/inbox");
+    prefetchRoute("/channels");
+    prefetchRoute("/calendar");
+    prefetchRoute("/todos");
+    prefetchRoute("/expiry");
+    prefetchRoute("/inventory");
+    prefetchRoute("/maintenance");
+    prefetchRoute("/goals");
+    prefetchRoute("/settings");
   }, []);
 
   useEffect(() => {
     fetchEvents();
-    api.getRaw<unknown[]>('/inbox?limit=1')
-      .then((res) => setInboxUnread((res.pagination?.unreadCount as number) || 0))
+    api
+      .getRaw<unknown[]>("/inbox?limit=1")
+      .then((res) =>
+        setInboxUnread((res.pagination?.unreadCount as number) || 0),
+      )
       .catch(() => setInboxUnread(0));
   }, [fetchEvents, profileId]);
 
   useEffect(() => {
     if (!events.length) return;
-    api.get<{ date: string; count: number; names: string[] }[]>('/features/conflicts')
+    api
+      .get<{ date: string; count: number; names: string[] }[]>(
+        "/features/conflicts",
+      )
       .then((data) => setConflicts(Array.isArray(data) ? data : []))
       .catch(() => setConflicts([]));
   }, [events.length]);
@@ -95,16 +150,25 @@ export function Dashboard() {
   );
 
   // v2.30：ICS 导入结果用行内横幅替代 alert（不打断、可复查、自动消失）
-  const [icsStatus, setIcsStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [icsStatus, setIcsStatus] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
+  const icsInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportIcs = async (file: File) => {
     // v2.27：整个导入路径包 try/catch —— 此前 fetch/json 失败是 unhandled rejection，UI 无反馈
     try {
       const text = await file.text();
-      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-      const res = await fetch('/api/calendar/import-ics', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/calendar' },
+      const token =
+        localStorage.getItem("accessToken") ||
+        sessionStorage.getItem("accessToken");
+      const res = await fetch("/api/calendar/import-ics", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "text/calendar",
+        },
         body: text,
       });
       const data = await res.json().catch(() => null);
@@ -112,15 +176,20 @@ export function Dashboard() {
         setIcsStatus({ ok: true, text: `已导入 ${data.data.imported} 个事件` });
         fetchEvents();
       } else {
-        setIcsStatus({ ok: false, text: data?.error || `导入失败（HTTP ${res.status}）` });
+        setIcsStatus({
+          ok: false,
+          text: data?.error || `导入失败（HTTP ${res.status}）`,
+        });
       }
     } catch (e) {
-      setIcsStatus({ ok: false, text: e instanceof Error ? e.message : '导入失败' });
+      setIcsStatus({
+        ok: false,
+        text: e instanceof Error ? e.message : "导入失败",
+      });
     } finally {
       setTimeout(() => setIcsStatus(null), 6000);
     }
   };
-
 
   const handleSubmit = async (data: CreateEventRequest) => {
     if (editingEvent) await updateEvent(editingEvent.id, data);
@@ -128,30 +197,53 @@ export function Dashboard() {
     setEditingEvent(undefined);
   };
 
-  const handleEdit = (event: Event) => { setEditingEvent(event); setShowForm(true); };
-  const handleDelete = async (id: string) => { if (confirm('确定删除此事件？')) { await deleteEvent(id); setShowForm(false); setEditingEvent(undefined); } };
+  const handleEdit = (event: Event) => {
+    setEditingEvent(event);
+    setShowForm(true);
+  };
+  const handleDelete = async (id: string) => {
+    if (confirm("确定删除此事件？")) {
+      await deleteEvent(id);
+      setShowForm(false);
+      setEditingEvent(undefined);
+    }
+  };
   const handleTestSend = async (id: string) => {
     try {
       const result = await testSendEvent(id);
       const results = result?.channelResults || {};
-      const failed = Object.entries(results).filter(([key, r]) => !key.startsWith('_') && !r.success);
-      const succeeded = Object.entries(results).filter(([key, r]) => !key.startsWith('_') && r.success);
+      const failed = Object.entries(results).filter(
+        ([key, r]) => !key.startsWith("_") && !r.success,
+      );
+      const succeeded = Object.entries(results).filter(
+        ([key, r]) => !key.startsWith("_") && r.success,
+      );
       if (failed.length > 0) {
-        alert(`部分渠道失败：\n${failed.map(([ch, r]) => `${ch}: ${r.error || '未知错误'}`).join('\n')}`);
+        alert(
+          `部分渠道失败：\n${failed.map(([ch, r]) => `${ch}: ${r.error || "未知错误"}`).join("\n")}`,
+        );
       } else if (succeeded.length === 0) {
-        alert('未找到可用通知渠道，请先在「通知渠道」配置并测试通过。');
+        alert("未找到可用通知渠道，请先在「通知渠道」配置并测试通过。");
       } else {
-        const detail = succeeded.map(([ch, r]) => {
-          const emails = r.recipients?.length ? ` → ${r.recipients.join(', ')}` : '';
-          return `${ch}${emails}`;
-        }).join('\n');
+        const detail = succeeded
+          .map(([ch, r]) => {
+            const emails = r.recipients?.length
+              ? ` → ${r.recipients.join(", ")}`
+              : "";
+            return `${ch}${emails}`;
+          })
+          .join("\n");
         const goLogs = confirm(
           `测试通知已发出：\n${detail}\n\n邮件渠道若使用 Resend 测试地址，仅可发到注册邮箱；请检查垃圾箱。\n\n点击「确定」打开提醒日志查看详情。`,
         );
-        if (goLogs) navigate('/trigger-logs');
+        if (goLogs) navigate("/trigger-logs");
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : '发送失败，请检查通知渠道与设置中的默认邮箱');
+      alert(
+        error instanceof Error
+          ? error.message
+          : "发送失败，请检查通知渠道与设置中的默认邮箱",
+      );
     }
   };
   const handleBatchDelete = async () => {
@@ -164,112 +256,331 @@ export function Dashboard() {
         setBatchMode(false);
       }
     } catch (error) {
-      console.error('Batch delete error:', error);
-      alert('批量删除失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      console.error("Batch delete error:", error);
+      alert(
+        "批量删除失败: " +
+          (error instanceof Error ? error.message : "未知错误"),
+      );
     }
   };
 
-  const handleExportCalendar = async (format: 'ics' | 'google' | 'apple') => {
+  const handleExportCalendar = async (format: "ics" | "google" | "apple") => {
     try {
-      if (format === 'ics') {
+      if (format === "ics") {
         // Download ICS file
-        const response = await fetch('/api/calendar/export.ics', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')}` }
+        const response = await fetch("/api/calendar/export.ics", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken")}`,
+          },
         });
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = 'timemark-events.ics';
+        a.download = "timemark-events.ics";
         a.click();
         window.URL.revokeObjectURL(url);
-      } else if (format === 'google') {
+      } else if (format === "google") {
         // Open Google Calendar links
-        const response = await fetch('/api/calendar/google', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')}` }
+        const response = await fetch("/api/calendar/google", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken")}`,
+          },
         });
         const data = await response.json();
         if (data.success && data.data?.length > 0) {
-          window.open(data.data[0].link, '_blank');
+          window.open(data.data[0].link, "_blank");
         } else {
-          alert('没有可导出的事件');
+          alert("没有可导出的事件");
         }
-      } else if (format === 'apple') {
+      } else if (format === "apple") {
         // Subscribe to Apple Calendar
-        const response = await fetch('/api/calendar/apple', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')}` }
+        const response = await fetch("/api/calendar/apple", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken")}`,
+          },
         });
         const data = await response.json();
         if (data.success) {
-          window.open(data.data.subscribeUrl, '_blank');
+          window.open(data.data.subscribeUrl, "_blank");
         }
       }
     } catch (error) {
-      console.error('Export error:', error);
-      alert('导出失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      console.error("Export error:", error);
+      alert(
+        "导出失败: " + (error instanceof Error ? error.message : "未知错误"),
+      );
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen pb-24">
-      <header className="sticky top-4 z-50 px-4 max-w-7xl mx-auto" role="banner" aria-label="页面顶部导航">
-        <div className="glass-panel rounded-full px-6 py-3 flex justify-between items-center ring-1 ring-white/20 dark:ring-white/10">
-          <div className="flex items-center gap-4 alive-interactive" onClick={() => navigate('/dashboard')} role="button" tabIndex={0} aria-label="返回首页" onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/dashboard')}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 flex items-center justify-center shadow-lg" aria-hidden>
-              <span className="text-white font-bold text-xl">T</span>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-screen pb-24"
+    >
+      <header
+        className="sticky top-2 md:top-4 z-40 px-4 max-w-7xl mx-auto"
+        role="banner"
+        aria-label="页面顶部导航"
+      >
+        <div className="glass-panel rounded-full px-2 sm:px-6 py-2 md:py-3 flex justify-between items-center ring-1 ring-white/20 dark:ring-white/10">
+          <div
+            className="flex items-center gap-4 alive-interactive"
+            onClick={() => navigate("/dashboard")}
+            role="button"
+            tabIndex={0}
+            aria-label="返回首页"
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && navigate("/dashboard")
+            }
+          >
+            <div
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 flex items-center justify-center shadow-lg"
+              aria-hidden
+            >
+              <span className="text-white font-bold text-lg md:text-xl">T</span>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 hidden md:block tracking-tight">TimeMark</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 hidden md:block tracking-tight">
+              TimeMark
+            </h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden md:flex items-center gap-3 bg-white/30 dark:bg-black/30 backdrop-blur-md rounded-full px-4 py-1.5 shadow-inner" aria-label="时钟与时区">
+            <div
+              className="hidden md:flex items-center gap-3 bg-white/30 dark:bg-black/30 backdrop-blur-md rounded-full px-4 py-1.5 shadow-inner"
+              aria-label="时钟与时区"
+            >
               <RealtimeClock />
-              <div className="w-px h-4 bg-slate-300 dark:bg-slate-600" aria-hidden></div>
+              <div
+                className="w-px h-4 bg-slate-300 dark:bg-slate-600"
+                aria-hidden
+              ></div>
               <TimezoneSelector />
             </div>
-            <ProfileSwitcher />
-            <div className="flex items-center gap-1" role="toolbar" aria-label="快捷操作">
-              <Button variant="ghost" size="icon" className="rounded-full relative" onClick={() => navigate('/inbox')} aria-label={`收件箱${inboxUnread > 0 ? `，${inboxUnread} 条未读` : ''}`}>
-                <Inbox size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
+            <ProfileSwitcher className="max-w-[7rem] md:max-w-[9rem]" />
+            <div
+              className="flex items-center gap-1"
+              role="toolbar"
+              aria-label="快捷操作"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full relative"
+                onClick={() => navigate("/inbox")}
+                aria-label={`收件箱${inboxUnread > 0 ? `，${inboxUnread} 条未读` : ""}`}
+              >
+                <Inbox
+                  size={20}
+                  className="text-slate-600 dark:text-slate-300"
+                  aria-hidden
+                />
                 {inboxUnread > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {inboxUnread > 99 ? '99+' : inboxUnread}
+                    {inboxUnread > 99 ? "99+" : inboxUnread}
                   </span>
                 )}
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/trigger-logs')} aria-label="提醒日志" title="提醒日志">
-                <ListChecks size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/analytics')} aria-label="数据看板">
-                <BarChart2 size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/annual-report')} aria-label="年度报告">
-                <Calendar size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/channels')} aria-label="通知渠道">
-                <Bell size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/security')} aria-label="安全中心">
-                <Shield size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" aria-label="导出 ICS 日历" onClick={() => handleExportCalendar('ics')}>
-                <Download size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <label className="cursor-pointer inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="导入 ICS 日历">
-                <input type="file" accept=".ics,text/calendar" className="hidden" aria-label="选择 ICS 文件" onChange={(e) => e.target.files?.[0] && handleImportIcs(e.target.files[0])} />
-                <Upload size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </label>
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/settings')} aria-label="系统设置">
-                <Settings size={20} className="text-slate-600 dark:text-slate-300" aria-hidden />
-              </Button>
-              <ThemeToggle />
+              <div className="hidden md:flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/trigger-logs")}
+                  aria-label="提醒日志"
+                  title="提醒日志"
+                >
+                  <ListChecks
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/analytics")}
+                  aria-label="数据看板"
+                >
+                  <BarChart2
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/annual-report")}
+                  aria-label="年度报告"
+                >
+                  <Calendar
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/channels")}
+                  aria-label="通知渠道"
+                >
+                  <Bell
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/security")}
+                  aria-label="安全中心"
+                >
+                  <Shield
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label="导出 ICS 日历"
+                  onClick={() => handleExportCalendar("ics")}
+                >
+                  <Download
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <label
+                  htmlFor="ics-file-input"
+                  className="cursor-pointer inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                  aria-label="导入 ICS 日历"
+                >
+                  <Upload
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => navigate("/settings")}
+                  aria-label="系统设置"
+                >
+                  <Settings
+                    size={20}
+                    className="text-slate-600 dark:text-slate-300"
+                    aria-hidden
+                  />
+                </Button>
+                <ThemeToggle />
+              </div>
+              <ActionMenu
+                className="md:hidden"
+                icon={MoreHorizontal}
+                triggerLabel="更多操作"
+                align="end"
+                items={[
+                  {
+                    label: "提醒日志",
+                    icon: ListChecks,
+                    onSelect: () => navigate("/trigger-logs"),
+                  },
+                  {
+                    label: "数据看板",
+                    icon: BarChart2,
+                    onSelect: () => navigate("/analytics"),
+                  },
+                  {
+                    label: "年度报告",
+                    icon: Calendar,
+                    onSelect: () => navigate("/annual-report"),
+                  },
+                  {
+                    label: "通知渠道",
+                    icon: Bell,
+                    onSelect: () => navigate("/channels"),
+                  },
+                  {
+                    label: "安全中心",
+                    icon: Shield,
+                    onSelect: () => navigate("/security"),
+                  },
+                  {
+                    label: "系统设置",
+                    icon: Settings,
+                    onSelect: () => navigate("/settings"),
+                  },
+                  {
+                    label: "导出 ICS",
+                    icon: Download,
+                    dividerBefore: true,
+                    onSelect: () => handleExportCalendar("ics"),
+                  },
+                  {
+                    label: "导入 ICS",
+                    icon: Upload,
+                    onSelect: () => icsInputRef.current?.click(),
+                  },
+                  {
+                    label: "切换主题",
+                    icon: SunMoon,
+                    dividerBefore: true,
+                    onSelect: () =>
+                      void toggleThemeWithTransition(
+                        !document.documentElement.classList.contains("dark"),
+                      ),
+                  },
+                  {
+                    label: "退出登录",
+                    icon: LogOut,
+                    danger: true,
+                    onSelect: logout,
+                  },
+                ]}
+              />
             </div>
-            <div className="h-8 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:block">{user?.username}</span>
-              <Button variant="outline" size="sm" className="rounded-full border-slate-300/50 dark:border-slate-600/50" onClick={logout} aria-label="退出登录">退出</Button>
+            <div className="h-8 w-px bg-slate-300 dark:bg-slate-700 hidden md:block"></div>
+            <div className="hidden md:flex items-center gap-3">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {user?.username}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full border-slate-300/50 dark:border-slate-600/50"
+                onClick={logout}
+                aria-label="退出登录"
+              >
+                退出
+              </Button>
             </div>
           </div>
         </div>
+        <input
+          ref={icsInputRef}
+          id="ics-file-input"
+          type="file"
+          accept=".ics,text/calendar"
+          className="hidden"
+          aria-label="选择 ICS 文件"
+          onChange={(e) =>
+            e.target.files?.[0] && handleImportIcs(e.target.files[0])
+          }
+        />
       </header>
 
       {/* v2.30：ICS 导入结果行内横幅（替代 alert） */}
@@ -278,20 +589,24 @@ export function Dashboard() {
           role="status"
           className={`max-w-7xl mx-auto px-6 mt-2 rounded-xl px-4 py-2 text-sm ${
             icsStatus.ok
-              ? 'border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300'
-              : 'border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-900/10 text-red-600 dark:text-red-300'
+              ? "border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300"
+              : "border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-900/10 text-red-600 dark:text-red-300"
           }`}
         >
           {icsStatus.text}
         </div>
       )}
 
-      <main id="main-content" className="max-w-7xl mx-auto px-6 py-8 mt-4" tabIndex={-1}>
+      <main
+        id="main-content"
+        className="max-w-7xl mx-auto px-4 md:px-6 py-8"
+        tabIndex={-1}
+      >
         {(() => {
           // v2.25: 静默时段横幅（本地时间在窗口内时显示；窗口跨午夜也支持）
           if (!quietHours?.start || !quietHours?.end) return null;
           const toMin = (t: string): number => {
-            const [h, m] = t.split(':').map(Number);
+            const [h, m] = t.split(":").map(Number);
             if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN;
             return h * 60 + m;
           };
@@ -299,79 +614,141 @@ export function Dashboard() {
           const e = toMin(quietHours.end);
           if (!Number.isFinite(s) || !Number.isFinite(e)) return null;
           const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-          const inQuiet = s <= e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e;
+          const inQuiet =
+            s <= e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e;
           if (!inQuiet) return null;
           return (
-            <div className="mb-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 px-4 py-2.5 text-sm text-indigo-700 dark:text-indigo-300 flex items-center gap-2" role="status">
-              🌙 静默时段（{quietHours.start}–{quietHours.end}）：提醒会在窗口结束后补发，不会丢失。
+            <div
+              className="mb-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 px-4 py-2.5 text-sm text-indigo-700 dark:text-indigo-300 flex items-center gap-2"
+              role="status"
+            >
+              🌙 静默时段（{quietHours.start}–{quietHours.end}
+              ）：提醒会在窗口结束后补发，不会丢失。
             </div>
           );
         })()}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <div className="glass-panel rounded-2xl p-4"><p className="text-xs text-slate-500 dark:text-slate-400">今日事件</p><p className="text-2xl font-bold">{todayCount}</p></div>
+          <div className="glass-panel rounded-2xl p-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              今日事件
+            </p>
+            <p className="text-2xl font-bold">{todayCount}</p>
+          </div>
           <div
             className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-amber-400/50 transition"
-            onClick={() => navigate('/todos')}
+            onClick={() => navigate("/todos")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && navigate('/todos')}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/todos")}
           >
-            <p className="text-xs text-slate-500 dark:text-slate-400">近期待办</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              近期待办
+            </p>
             <p className="text-2xl font-bold">{todoCount}</p>
-            <p className="text-[10px] text-slate-400 mt-1">进入提醒窗口的事件</p>
+            <p className="text-[10px] text-slate-400 mt-1">
+              进入提醒窗口的事件
+            </p>
           </div>
-          <div className="glass-panel rounded-2xl p-4"><p className="text-xs text-slate-500 dark:text-slate-400">总事件</p><p className="text-2xl font-bold">{events.length}</p></div>
-          <div className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-emerald-400/50 transition" onClick={() => navigate('/contacts')} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/contacts')}>
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Users size={12} />固定联系人</p>
+          <div className="glass-panel rounded-2xl p-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400">总事件</p>
+            <p className="text-2xl font-bold">{events.length}</p>
+          </div>
+          <div
+            className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-emerald-400/50 transition"
+            onClick={() => navigate("/contacts")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && navigate("/contacts")
+            }
+          >
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Users size={12} />
+              固定联系人
+            </p>
             <p className="text-sm font-medium text-emerald-600">管理 →</p>
           </div>
-          <div className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-blue-400/50 transition" onClick={() => navigate('/broadcast')} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/broadcast')}>
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Mail size={12} />批量邮件</p>
+          <div
+            className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-blue-400/50 transition"
+            onClick={() => navigate("/broadcast")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && navigate("/broadcast")
+            }
+          >
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Mail size={12} />
+              批量邮件
+            </p>
             <p className="text-sm font-medium text-blue-600">群发 →</p>
           </div>
-          <div className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-indigo-400/50 transition" onClick={() => navigate('/calendar')} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/calendar')}>
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Calendar size={12} />日历视图</p>
+          <div
+            className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-indigo-400/50 transition"
+            onClick={() => navigate("/calendar")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && navigate("/calendar")
+            }
+          >
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Calendar size={12} />
+              日历视图
+            </p>
             <p className="text-sm font-medium text-indigo-600">查看 →</p>
           </div>
           <div
             className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-rose-400/50 transition"
-            onClick={() => navigate('/expiry')}
+            onClick={() => navigate("/expiry")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && navigate('/expiry')}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/expiry")}
           >
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><AlarmClock size={12} />到期中心</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <AlarmClock size={12} />
+              到期中心
+            </p>
             <p className="text-sm font-medium text-rose-600">管理 →</p>
           </div>
           <div
             className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-teal-400/50 transition"
-            onClick={() => navigate('/inventory')}
+            onClick={() => navigate("/inventory")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && navigate('/inventory')}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/inventory")}
           >
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Package size={12} />库存</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Package size={12} />
+              库存
+            </p>
             <p className="text-sm font-medium text-teal-600">管理 →</p>
           </div>
           <div
             className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-orange-400/50 transition"
-            onClick={() => navigate('/maintenance')}
+            onClick={() => navigate("/maintenance")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && navigate('/maintenance')}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/maintenance")}
           >
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Wrench size={12} />保养</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Wrench size={12} />
+              保养
+            </p>
             <p className="text-sm font-medium text-orange-600">管理 →</p>
           </div>
           <div
             className="glass-panel rounded-2xl p-4 cursor-pointer hover:ring-2 hover:ring-violet-400/50 transition"
-            onClick={() => navigate('/goals')}
+            onClick={() => navigate("/goals")}
             role="button"
             tabIndex={0}
             data-testid="nav-goals"
-            onKeyDown={(e) => e.key === 'Enter' && navigate('/goals')}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/goals")}
           >
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Target size={12} />目标</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Target size={12} />
+              目标
+            </p>
             <p className="text-sm font-medium text-violet-600">管理 →</p>
           </div>
         </div>
@@ -385,20 +762,29 @@ export function Dashboard() {
         <RecentNotificationsCard />
         {conflicts.length > 0 && (
           <div className="mb-6 glass-panel rounded-2xl p-4 border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-900/10">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2">⚠️ 日期冲突检测（{conflicts.length} 组）</p>
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2">
+              ⚠️ 日期冲突检测（{conflicts.length} 组）
+            </p>
             <div className="space-y-1">
-              {(showAllConflicts ? conflicts : conflicts.slice(0, 3)).map((c) => (
-                <p key={c.date} className="text-xs text-amber-700 dark:text-amber-300">
-                  {c.date}：{c.names?.join('、') || `${c.count} 个事件`}
-                </p>
-              ))}
+              {(showAllConflicts ? conflicts : conflicts.slice(0, 3)).map(
+                (c) => (
+                  <p
+                    key={c.date}
+                    className="text-xs text-amber-700 dark:text-amber-300"
+                  >
+                    {c.date}：{c.names?.join("、") || `${c.count} 个事件`}
+                  </p>
+                ),
+              )}
               {conflicts.length > 3 && (
                 <button
                   type="button"
                   className="text-xs text-amber-600 dark:text-amber-400 underline"
                   onClick={() => setShowAllConflicts((v) => !v)}
                 >
-                  {showAllConflicts ? '收起' : `查看全部 ${conflicts.length} 组`}
+                  {showAllConflicts
+                    ? "收起"
+                    : `查看全部 ${conflicts.length} 组`}
                 </button>
               )}
             </div>
@@ -406,17 +792,38 @@ export function Dashboard() {
         )}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">我的倒计时</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">共有 {events.length} 个正在追踪的事件</p>
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              我的倒计时
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">
+              共有 {events.length} 个正在追踪的事件
+            </p>
           </div>
           <div className="flex items-center gap-3 glass px-2 py-2 rounded-2xl ring-1 ring-white/20">
-            <Button variant={batchMode ? "secondary" : "ghost"} className="rounded-xl transition-all" onClick={() => { setBatchMode(!batchMode); setSelectedIds([]); }}>
-              {batchMode ? '取消批量操作' : '批量管理'}
+            <Button
+              variant={batchMode ? "secondary" : "ghost"}
+              className="rounded-xl transition-all"
+              onClick={() => {
+                setBatchMode(!batchMode);
+                setSelectedIds([]);
+              }}
+            >
+              {batchMode ? "取消批量操作" : "批量管理"}
             </Button>
             <AnimatePresence>
               {batchMode && (
-                <motion.div initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} className="overflow-hidden">
-                  <Button variant="destructive" className="rounded-xl whitespace-nowrap" onClick={handleBatchDelete} disabled={selectedIds.length === 0}>
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="overflow-hidden"
+                >
+                  <Button
+                    variant="destructive"
+                    className="rounded-xl whitespace-nowrap"
+                    onClick={handleBatchDelete}
+                    disabled={selectedIds.length === 0}
+                  >
                     删除已选 ({selectedIds.length})
                   </Button>
                 </motion.div>
@@ -426,7 +833,7 @@ export function Dashboard() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="glass rounded-3xl p-6 h-48" />
             ))}
@@ -436,33 +843,79 @@ export function Dashboard() {
             <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
               <Plus size={40} className="text-primary-500" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">暂无倒计时事件</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">点击右下角的按钮创建一个新的重要时刻</p>
-            <Button variant="vision" onClick={() => { setEditingEvent(undefined); setShowForm(true); }}>立即创建</Button>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+              暂无倒计时事件
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
+              点击右下角的按钮创建一个新的重要时刻
+            </p>
+            <Button
+              variant="vision"
+              onClick={() => {
+                setEditingEvent(undefined);
+                setShowForm(true);
+              }}
+            >
+              立即创建
+            </Button>
           </div>
         ) : (
-          <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" variants={containerVariants} initial="hidden" animate="visible">
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {events.map((event) => (
               <motion.div key={event.id} variants={itemVariants}>
-                <EventCard event={event} onEdit={handleEdit} onDelete={handleDelete} onTestSend={handleTestSend} selectable={batchMode} selected={selectedIds.includes(event.id)} onSelectToggle={(id, checked) => { setSelectedIds((prev) => checked ? [...prev, id] : prev.filter((item) => item !== id)); }} />
+                <EventCard
+                  event={event}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onTestSend={handleTestSend}
+                  selectable={batchMode}
+                  selected={selectedIds.includes(event.id)}
+                  onSelectToggle={(id, checked) => {
+                    setSelectedIds((prev) =>
+                      checked
+                        ? [...prev, id]
+                        : prev.filter((item) => item !== id),
+                    );
+                  }}
+                />
               </motion.div>
             ))}
           </motion.div>
         )}
       </main>
 
-      <motion.div className="fixed bottom-10 right-10 z-40" whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
-        <Button 
-          variant="vision" 
-          className="h-16 w-16 rounded-[1.5rem] shadow-2xl shadow-primary-600/50 flex items-center justify-center p-0 bg-gradient-to-br from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600" 
+      <motion.div
+        className="fixed bottom-36 right-4 md:bottom-10 md:right-10 z-40"
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Button
+          variant="vision"
+          className="h-16 w-16 rounded-[1.5rem] shadow-2xl shadow-primary-600/50 flex items-center justify-center p-0 bg-gradient-to-br from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600"
           aria-label="新建事件"
-          onClick={() => { setEditingEvent(undefined); setShowForm(true); }}
+          onClick={() => {
+            setEditingEvent(undefined);
+            setShowForm(true);
+          }}
         >
           <Plus size={28} className="text-white" />
         </Button>
       </motion.div>
-      
-      <EventForm open={showForm} onClose={() => { setShowForm(false); setEditingEvent(undefined); }} onSubmit={handleSubmit} event={editingEvent} />
+
+      <EventForm
+        open={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingEvent(undefined);
+        }}
+        onSubmit={handleSubmit}
+        event={editingEvent}
+      />
       <MobileBottomNav />
     </motion.div>
   );

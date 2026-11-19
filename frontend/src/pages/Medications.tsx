@@ -591,7 +591,7 @@ export default function Medications() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         {error && (
           <p className="text-sm text-destructive glass-panel rounded-2xl px-4 py-3" role="alert">{error}</p>
         )}

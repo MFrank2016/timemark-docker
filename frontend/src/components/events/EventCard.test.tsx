@@ -80,4 +80,14 @@ describe('EventCard', () => {
     render(<EventCard event={outOfRange} onEdit={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getByTestId('event-lunar-error')).toHaveTextContent('农历数据不可用')
   })
+
+  it('opens the mobile action menu and calls onEdit from its menu item', async () => {
+    const onEdit = vi.fn()
+    render(<EventCard event={mockEvent} onEdit={onEdit} onDelete={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: '更多操作' }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: /编辑/ }))
+    expect(onEdit).toHaveBeenCalledWith(mockEvent)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
 })

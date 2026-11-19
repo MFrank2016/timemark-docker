@@ -446,7 +446,7 @@ export default function Expiry() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         <section aria-label="到期概览" className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard testId="expiry-summary-overdue" label="已逾期" value={summary.overdue} hint="需尽快处理" tone="destructive" />
           <SummaryCard testId="expiry-summary-week" label="本周到期" value={summary.week} hint="7 天内" />

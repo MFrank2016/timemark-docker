@@ -318,7 +318,7 @@ export default function Habits() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         {/* v2.27 F44：排序切换 */}
         <div className="flex justify-end">
           <select

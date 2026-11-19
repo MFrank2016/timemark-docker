@@ -1,17 +1,34 @@
-import { motion } from 'framer-motion';
-import { Clock, Calendar, Edit2, Trash2, Send, CheckCircle2, Circle, Heart, GraduationCap, PartyPopper, Sparkles, CalendarDays, Moon, Copy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useEffect, useState } from 'react';
-import type { Event, EventType } from '@timemark/shared';
+import { motion } from "framer-motion";
+import {
+  Clock,
+  Calendar,
+  Edit2,
+  Trash2,
+  Send,
+  CheckCircle2,
+  Circle,
+  Heart,
+  GraduationCap,
+  PartyPopper,
+  Sparkles,
+  CalendarDays,
+  Moon,
+  Copy,
+  MoreVertical,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import type { Event, EventType } from "@timemark/shared";
 import {
   diffToCountdownParts,
   getEventCountdownTarget,
   isEventCountdownPast,
   resolveNextOccurrenceDate,
-} from '@/lib/calendar-utils';
-import { resolveEventLunarLabel } from '@/lib/lunar';
-import { useTimezone } from '@/components/RealtimeClock';
+} from "@/lib/calendar-utils";
+import { resolveEventLunarLabel } from "@/lib/lunar";
+import { useTimezone } from "@/components/RealtimeClock";
 
 interface EventCardProps {
   event: Event;
@@ -33,13 +50,13 @@ const safeParseDate = (dateString: string | undefined): Date | null => {
 
 const getEventTypeIcon = (type: EventType) => {
   switch (type) {
-    case 'birthday':
+    case "birthday":
       return <Heart size={18} />;
-    case 'exam':
+    case "exam":
       return <GraduationCap size={18} />;
-    case 'anniversary':
+    case "anniversary":
       return <Heart size={18} />;
-    case 'holiday':
+    case "holiday":
       return <PartyPopper size={18} />;
     default:
       return <Sparkles size={18} />;
@@ -48,27 +65,46 @@ const getEventTypeIcon = (type: EventType) => {
 
 const getEventTypeColor = (type: EventType): string => {
   switch (type) {
-    case 'birthday':
-      return 'bg-pink-500';
-    case 'exam':
-      return 'bg-blue-500';
-    case 'anniversary':
-      return 'bg-rose-500';
-    case 'holiday':
-      return 'bg-yellow-500';
+    case "birthday":
+      return "bg-pink-500";
+    case "exam":
+      return "bg-blue-500";
+    case "anniversary":
+      return "bg-rose-500";
+    case "holiday":
+      return "bg-yellow-500";
     default:
-      return 'bg-purple-500';
+      return "bg-purple-500";
   }
 };
 
-export function EventCard({ event, onEdit, onDelete, onTestSend, selectable, selected, onSelectToggle }: EventCardProps) {
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+export function EventCard({
+  event,
+  onEdit,
+  onDelete,
+  onTestSend,
+  selectable,
+  selected,
+  onSelectToggle,
+}: EventCardProps) {
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
   const [isPast, setIsPast] = useState(false);
   const { timezone } = useTimezone();
 
-  const nextOccurrenceDate = resolveNextOccurrenceDate(event, new Date(), timezone);
+  const nextOccurrenceDate = resolveNextOccurrenceDate(
+    event,
+    new Date(),
+    timezone,
+  );
   const targetDate = safeParseDate(nextOccurrenceDate);
-  const formattedDate = targetDate ? targetDate.toLocaleDateString('zh-CN') : '无效日期';
+  const formattedDate = targetDate
+    ? targetDate.toLocaleDateString("zh-CN")
+    : "无效日期";
   const displayDate = formattedDate;
   // checkbox 169: 双历事件同时展示农历（原样读持久化的 lunarDate；缺失时受支持年份保护）。
   const lunarInfo = resolveEventLunarLabel(event);
@@ -101,46 +137,125 @@ export function EventCard({ event, onEdit, onDelete, onTestSend, selectable, sel
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
     return () => clearInterval(timer);
-  }, [event.date, event.nextOccurrence, event.type, event.recurringConfig, event.reminderConfig, timezone]);
+  }, [
+    event.date,
+    event.nextOccurrence,
+    event.type,
+    event.recurringConfig,
+    event.reminderConfig,
+    timezone,
+  ]);
 
   return (
-    <div className={`relative group glass-panel rounded-[2.5rem] p-6 overflow-hidden h-full ${selected ? 'ring-2 ring-primary-500 shadow-xl shadow-primary-500/20' : 'ring-1 ring-black/5 dark:ring-white/10'}`} onClick={() => selectable && onSelectToggle && onSelectToggle(event.id, !selected)}>
-      <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
-      
+    <div
+      className={`relative group glass-panel rounded-3xl p-4 md:rounded-[2.5rem] md:p-6 h-full [&:has([aria-expanded=true])]:z-[45] ${selected ? "ring-2 ring-primary-500 shadow-xl shadow-primary-500/20" : "ring-1 ring-black/5 dark:ring-white/10"}`}
+      onClick={() =>
+        selectable && onSelectToggle && onSelectToggle(event.id, !selected)
+      }
+    >
+      <div className="absolute inset-0 overflow-hidden rounded-3xl md:rounded-[2.5rem] pointer-events-none">
+        <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
+      </div>
+
       {/* Header with event type */}
       <div className="flex justify-between items-start mb-4 relative z-10">
         <div className="flex-1">
           <div className="flex items-center gap-3">
             {selectable && (
-              <motion.div initial={false} animate={{ scale: selected ? 1.1 : 1 }} className="cursor-pointer">
-                {selected ? <CheckCircle2 className="text-primary-500 drop-shadow-md" size={24} /> : <Circle className="text-slate-400 dark:text-slate-500" size={24} />}
+              <motion.div
+                initial={false}
+                animate={{ scale: selected ? 1.1 : 1 }}
+                className="cursor-pointer"
+              >
+                {selected ? (
+                  <CheckCircle2
+                    className="text-primary-500 drop-shadow-md"
+                    size={24}
+                  />
+                ) : (
+                  <Circle
+                    className="text-slate-400 dark:text-slate-500"
+                    size={24}
+                  />
+                )}
               </motion.div>
             )}
-            <div className={`w-8 h-8 rounded-xl ${getEventTypeColor(event.type)} flex items-center justify-center text-white shadow-md`}>
+            <div
+              className={`w-8 h-8 rounded-xl ${getEventTypeColor(event.type)} flex items-center justify-center text-white shadow-md`}
+            >
               {getEventTypeIcon(event.type)}
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight line-clamp-1">{event.name}</h3>
+            <h3 className="text-base md:text-xl font-bold text-slate-900 dark:text-white tracking-tight line-clamp-1">
+              {event.name}
+            </h3>
           </div>
           <div className="flex items-center gap-2 mt-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-            <Calendar size={14} /> 
+            <Calendar size={14} />
             <span>{displayDate}</span>
-            <Badge variant="secondary" className="px-2 py-0.5 text-[10px]">{event.calendarType === 'lunar' ? '农历' : event.calendarType === 'both' ? '双历' : '公历'}</Badge>
+            <Badge variant="secondary" className="px-2 py-0.5 text-[10px]">
+              {event.calendarType === "lunar"
+                ? "农历"
+                : event.calendarType === "both"
+                  ? "双历"
+                  : "公历"}
+            </Badge>
           </div>
           {lunarInfo.label && (
-            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400 relative z-10" data-testid="event-lunar-date">
+            <div
+              className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400 relative z-10"
+              data-testid="event-lunar-date"
+            >
               <Moon size={12} className="text-primary-500" />
               <span>{lunarInfo.label}</span>
             </div>
           )}
           {lunarInfo.error && !lunarInfo.label && (
-            <div className="flex items-center gap-2 mt-1 text-xs text-amber-600 dark:text-amber-300 relative z-10" data-testid="event-lunar-error">
+            <div
+              className="flex items-center gap-2 mt-1 text-xs text-amber-600 dark:text-amber-300 relative z-10"
+              data-testid="event-lunar-error"
+            >
               <Moon size={12} />
               <span>{lunarInfo.error}</span>
             </div>
           )}
         </div>
+        {!selectable && (
+          <ActionMenu
+            className="md:hidden shrink-0"
+            align="end"
+            icon={MoreVertical}
+            triggerLabel="更多操作"
+            items={[
+              ...(onTestSend
+                ? [
+                    {
+                      label: "测试发送",
+                      icon: Send,
+                      onSelect: () => onTestSend?.(event.id),
+                    },
+                  ]
+                : []),
+              {
+                label: "复制日期",
+                icon: Copy,
+                onSelect: () =>
+                  navigator.clipboard
+                    .writeText(event.date)
+                    .catch(() => undefined),
+              },
+              { label: "编辑", icon: Edit2, onSelect: () => onEdit(event) },
+              {
+                label: "删除",
+                icon: Trash2,
+                danger: true,
+                dividerBefore: true,
+                onSelect: () => onDelete(event.id),
+              },
+            ]}
+          />
+        )}
       </div>
-      
+
       {/* Person name if exists */}
       {event.personName && (
         <div className="text-sm text-slate-600 dark:text-slate-400 mb-4 flex items-center gap-2 relative z-10">
@@ -148,58 +263,120 @@ export function EventCard({ event, onEdit, onDelete, onTestSend, selectable, sel
           <span>关联: {event.personName}</span>
         </div>
       )}
-      
+
       {/* Custom message */}
       {event.reminderConfig?.customMessage && (
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 line-clamp-2 relative z-10">{event.reminderConfig.customMessage}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 line-clamp-2 relative z-10">
+          {event.reminderConfig.customMessage}
+        </p>
       )}
-      
+
       {/* Countdown or past indicator */}
       <div className="mb-4 relative z-10">
         {isPast ? (
           <div className="flex items-center justify-center py-4 bg-red-50/80 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-500/20 backdrop-blur-xs">
-            <span className="text-lg font-bold text-red-600 dark:text-red-400 flex items-center gap-2"><Clock size={20} /> 目标时间已过</span>
+            <span className="text-lg font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+              <Clock size={20} /> 目标时间已过
+            </span>
           </div>
         ) : timeLeft ? (
-          <div className="grid grid-cols-4 gap-2">
-            {[{ l: '天', v: timeLeft.days }, { l: '时', v: timeLeft.hours }, { l: '分', v: timeLeft.minutes }, { l: '秒', v: timeLeft.seconds }].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center justify-center py-3 px-1 rounded-[1.25rem] bg-white/60 dark:bg-black/30 shadow-[inset_0_2px_4px_rgba(255,255,255,0.4)] dark:shadow-inner border border-white/80 dark:border-white/5">
-                <span className="text-2xl font-bold text-slate-800 dark:text-white tabular-nums tracking-tighter">{item.v.toString().padStart(2, '0')}</span>
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1 uppercase">{item.l}</span>
+          <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+            {[
+              { l: "天", v: timeLeft.days },
+              { l: "时", v: timeLeft.hours },
+              { l: "分", v: timeLeft.minutes },
+              { l: "秒", v: timeLeft.seconds },
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col items-center justify-center py-1.5 md:py-3 px-1 rounded-[1.25rem] bg-white/60 dark:bg-black/30 shadow-[inset_0_2px_4px_rgba(255,255,255,0.4)] dark:shadow-inner border border-white/80 dark:border-white/5"
+              >
+                <span className="text-lg md:text-2xl font-bold text-slate-800 dark:text-white tabular-nums tracking-tighter">
+                  {item.v.toString().padStart(2, "0")}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1 uppercase">
+                  {item.l}
+                </span>
               </div>
             ))}
           </div>
         ) : null}
       </div>
-      
+
       {/* Reminder status */}
       {event.reminderConfig?.enabled && (
-        <div className="mb-4 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 relative z-10">
+        <div className="mb-1.5 md:mb-4 text-[11px] md:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 relative z-10">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
           <span>已启用提醒</span>
-          {event.reminderConfig.daysBeforeList && event.reminderConfig.daysBeforeList.length > 0 && (
-            <span className="text-slate-400">• 提前 {event.reminderConfig.daysBeforeList.join(', ')} 天</span>
-          )}
+          {event.reminderConfig.daysBeforeList &&
+            event.reminderConfig.daysBeforeList.length > 0 && (
+              <span className="hidden sm:inline text-slate-400">
+                • 提前 {event.reminderConfig.daysBeforeList.join(", ")} 天
+              </span>
+            )}
         </div>
       )}
 
       {/* Reminder times */}
-      {event.reminderConfig?.reminderTimes && event.reminderConfig.reminderTimes.length > 0 && (
-        <div className="mb-4 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 relative z-10">
-          <Clock size={12} />
-          <span>提醒时间: {event.reminderConfig.reminderTimes.join(', ')}</span>
-        </div>
-      )}
+      {event.reminderConfig?.reminderTimes &&
+        event.reminderConfig.reminderTimes.length > 0 && (
+          <div className="hidden sm:flex mb-1.5 md:mb-4 text-[11px] md:text-xs text-slate-500 dark:text-slate-400 items-center gap-2 relative z-10">
+            <Clock size={12} />
+            <span>
+              提醒时间: {event.reminderConfig.reminderTimes.join(", ")}
+            </span>
+          </div>
+        )}
 
       {!selectable && (
-        <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200/60 dark:border-slate-700/50 relative z-10">
+        <div className="hidden md:flex items-center justify-end gap-2 pt-4 border-t border-slate-200/60 dark:border-slate-700/50 relative z-10">
           {onTestSend && (
-            <Button variant="ghost" size="sm" className="h-9 px-3 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-600 hover:text-primary-600 dark:text-slate-300 rounded-xl" onClick={(e) => { e.stopPropagation(); onTestSend(event.id); }}><Send size={14} className="mr-1.5" /> 测试</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 px-3 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-600 hover:text-primary-600 dark:text-slate-300 rounded-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTestSend(event.id);
+              }}
+            >
+              <Send size={14} className="mr-1.5" /> 测试
+            </Button>
           )}
           {/* v2.27 F38：一键复制事件日期（YYYY-MM-DD） */}
-          <Button variant="ghost" size="sm" className="h-9 px-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 hover:text-slate-800 dark:text-slate-300 rounded-xl" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(event.date).catch(() => undefined); }}><Copy size={14} className="mr-1.5" /> 复制日期</Button>
-          <Button variant="ghost" size="sm" className="h-9 px-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 hover:text-blue-600 dark:text-slate-300 rounded-xl" onClick={(e) => { e.stopPropagation(); onEdit(event); }}><Edit2 size={14} className="mr-1.5" /> 编辑</Button>
-          <Button variant="ghost" size="sm" className="h-9 px-3 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-600 hover:text-red-600 dark:text-slate-300 rounded-xl" onClick={(e) => { e.stopPropagation(); onDelete(event.id); }}><Trash2 size={14} className="mr-1.5" /> 删除</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 hover:text-slate-800 dark:text-slate-300 rounded-xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(event.date).catch(() => undefined);
+            }}
+          >
+            <Copy size={14} className="mr-1.5" /> 复制日期
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 hover:text-blue-600 dark:text-slate-300 rounded-xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(event);
+            }}
+          >
+            <Edit2 size={14} className="mr-1.5" /> 编辑
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-3 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-600 hover:text-red-600 dark:text-slate-300 rounded-xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(event.id);
+            }}
+          >
+            <Trash2 size={14} className="mr-1.5" /> 删除
+          </Button>
         </div>
       )}
     </div>

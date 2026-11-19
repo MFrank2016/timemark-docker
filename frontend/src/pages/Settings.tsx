@@ -789,7 +789,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen pb-24">
       <PageHeader title="系统设置" maxWidth="max-w-3xl" />
-      <main id="main-content" className="max-w-3xl mx-auto px-6 py-10 mt-2" tabIndex={-1}>
+      <main id="main-content" className="max-w-3xl mx-auto px-6 pb-10" tabIndex={-1}>
         {pageError && (
           <div className="mb-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
             部分配置加载失败：{pageError}
@@ -929,7 +929,7 @@ export default function Settings() {
                         <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{log.recipient}</span>
                         <span className={statusClass}>{statusLabel}</span>
                       </div>
-                      <p className="text-xs text-slate-400 truncate">{log.subject || log.channel_type} · {log.sent_at ? new Date(log.sent_at).toLocaleString('zh-CN') : ''}</p>
+                      <p className="text-xs text-hint truncate">{log.subject || log.channel_type} · {log.sent_at ? new Date(log.sent_at).toLocaleString('zh-CN') : ''}</p>
                       {log.status !== 'sent' && log.status !== 'received' && log.error_message && (
                         <p className="text-xs text-red-400 mt-1 break-words" title={log.error_message}>原因：{log.error_message}</p>
                       )}
@@ -1279,7 +1279,7 @@ export default function Settings() {
                     className="w-full min-h-[100px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm font-mono"
                     aria-label="Markdown 邮件模板"
                   />
-                  <p className="text-xs text-slate-400 mt-1">变量：name, date, type, blessing, message</p>
+                  <p className="text-xs text-hint mt-1">变量：name, date, type, blessing, message</p>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">邮件模板风格</label>
@@ -1293,7 +1293,7 @@ export default function Settings() {
                     <option value="card">卡片（推荐，深色适配）</option>
                     <option value="minimal">极简</option>
                   </select>
-                  <p className="text-xs text-slate-400 mt-1">卡片/极简为现代排版：日期徽章 + 深色模式适配 + 少链接（更不容易进垃圾箱）</p>
+                  <p className="text-xs text-hint mt-1">卡片/极简为现代排版：日期徽章 + 深色模式适配 + 少链接（更不容易进垃圾箱）</p>
                   <details className="mt-2 max-w-xs">
                     <summary className="text-xs text-primary-600 dark:text-primary-400 cursor-pointer select-none">预览该模板效果</summary>
                     <iframe
@@ -1306,7 +1306,7 @@ export default function Settings() {
                       ).html}
                     />
                     <pre className="mt-2 w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-xs whitespace-pre-wrap text-slate-600 dark:text-slate-300">{buildNaturalReminderText({ name: '示例事件（妈妈生日）', date: '2026-10-15', type: 'birthday' })}</pre>
-                    <p className="text-xs text-slate-400 mt-1">上方为邮件渲染效果，下方为 IM / 推送类渠道收到的纯文本内容（Dry-run，不真实发送）</p>
+                    <p className="text-xs text-hint mt-1">上方为邮件渲染效果，下方为 IM / 推送类渠道收到的纯文本内容（Dry-run，不真实发送）</p>
                   </details>
                 </div>
                 <div>
@@ -1321,12 +1321,12 @@ export default function Settings() {
                     className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm w-full max-w-xs"
                     aria-label="提醒补发窗口分钟数"
                   />
-                  <p className="text-xs text-slate-400 mt-1">cron 停摆后，今天内迟到的提醒最多补发多久：0=关闭，1440=当天漏掉的全部补发</p>
+                  <p className="text-xs text-hint mt-1">cron 停摆后，今天内迟到的提醒最多补发多久：0=关闭，1440=当天漏掉的全部补发</p>
                 </div>
                 <div className="flex items-center justify-between max-w-xs">
                   <div>
                     <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">渠道自动回退</label>
-                    <p className="text-xs text-slate-400 mt-1">指定渠道发送失败时，自动改用其他已绑定渠道发送</p>
+                    <p className="text-xs text-hint mt-1">指定渠道发送失败时，自动改用其他已绑定渠道发送</p>
                   </div>
                   <button
                     type="button"
@@ -1562,10 +1562,10 @@ export default function Settings() {
                   value={alertEmails}
                   onChange={(e) => setAlertEmails(e.target.value)}
                 />
-                <p className="text-xs text-slate-400 mt-1">直接发送到以上邮箱，使用已配置的 Resend / SMTP 账号发信</p>
+                <p className="text-xs text-hint mt-1">直接发送到以上邮箱，使用已配置的 Resend / SMTP 账号发信</p>
               </div>
               {alertAccounts.length === 0 ? (
-                <p className="text-sm text-slate-400">绑定渠道：请先<button type="button" className="text-indigo-500 underline mx-1" onClick={() => navigate('/channels')}>配置通知渠道</button></p>
+                <p className="text-sm text-hint">绑定渠道：请先<button type="button" className="text-indigo-500 underline mx-1" onClick={() => navigate('/channels')}>配置通知渠道</button></p>
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm font-medium">绑定通知渠道账号</p>
@@ -1585,7 +1585,7 @@ export default function Settings() {
                             />
                             <span className="text-sm font-medium">{account.name}</span>
                             {account.chat_id && (type === 'resend' || type === 'email' || type === 'smtp') && (
-                              <span className="text-xs text-slate-400 truncate">→ {account.chat_id}</span>
+                              <span className="text-xs text-hint truncate">→ {account.chat_id}</span>
                             )}
                           </label>
                         ))}

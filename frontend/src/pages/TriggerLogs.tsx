@@ -333,7 +333,7 @@ export default function TriggerLogs() {
         </div>
       )}
       {tab === 'reminders' ? (
-        <main className="max-w-4xl mx-auto px-6 py-10 mt-2">
+        <main id="main-content" className="max-w-4xl mx-auto px-6 pb-10" tabIndex={-1}>
           <div className="flex justify-end mb-2">
             {/* v2.27 F41：事件提醒历史导出 CSV（后端 /events/reminder-logs?format=csv） */}
             <Button
@@ -362,7 +362,7 @@ export default function TriggerLogs() {
           <EventReminderLogs />
         </main>
       ) : (
-      <main className="max-w-4xl mx-auto px-6 py-10 mt-2">
+      <main id="main-content" className="max-w-4xl mx-auto px-6 pb-10" tabIndex={-1}>
         {loading ? (
           <SkeletonCard count={4} />
         ) : logs.length === 0 ? (
@@ -460,7 +460,7 @@ export default function TriggerLogs() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                        <div className="text-sm font-bold text-slate-400 whitespace-nowrap bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-lg">
+                        <div className="text-sm font-bold text-hint whitespace-nowrap bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-lg">
                           {formatRelativeTime(log.created_at)}
                         </div>
                         {/* 与后端同一个闸门（trigger-logs.ts 对 outcome==='delivered' 直接 400）。

@@ -234,7 +234,7 @@ export default function Security() {
         }
       />
 
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
+      <main id="main-content" className="max-w-4xl mx-auto p-4 space-y-4" tabIndex={-1}>
         {loadError && (
           <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {loadError}

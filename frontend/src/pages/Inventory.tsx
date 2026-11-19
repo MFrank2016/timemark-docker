@@ -395,7 +395,7 @@ export default function Inventory() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         <section aria-label="库存概览" className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard testId="inventory-summary-total" label="全部库存" value={allItems.length} hint="当前用户全部项" />
           <SummaryCard testId="inventory-summary-low" label="低库存" value={lowStockCount} hint="达到或低于阈值" tone="destructive" />

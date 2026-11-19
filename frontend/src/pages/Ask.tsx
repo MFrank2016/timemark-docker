@@ -215,7 +215,7 @@ export default function Ask() {
         actions={<Sparkles size={18} className="text-primary-500 shrink-0" aria-hidden />}
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         <section aria-label="提问" className="glass-panel rounded-2xl p-4 ring-1 ring-black/5 dark:ring-white/10">
           <form onSubmit={onFormSubmit} className="flex items-center gap-2">
             <label className="sr-only" htmlFor="ask-question">问题</label>

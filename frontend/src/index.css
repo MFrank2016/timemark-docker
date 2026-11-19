@@ -163,6 +163,8 @@
 @layer base {
   * { @apply border-border; }
   body { @apply bg-background text-foreground overflow-x-hidden; scroll-behavior: smooth; }
+  /* 深链/锚点落点避开 sticky PageHeader（top-2 + pill 高度 + 余量） */
+  html { scroll-padding-top: 6.5rem; }
 }
 
 /* 

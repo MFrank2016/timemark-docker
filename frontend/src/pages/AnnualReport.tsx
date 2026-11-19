@@ -190,12 +190,11 @@ export default function AnnualReport() {
 
   return (
 
-    <div className="min-h-screen p-6 max-w-4xl mx-auto">
+    <div id="main-content" className="min-h-screen px-4 py-6 md:px-6 max-w-4xl mx-auto" tabIndex={-1}>
 
       <PageHeader
         title={`${data.year} 年度提醒报告`}
         backTo="/dashboard"
-        className="-mx-4"
         actions={
           <div className="flex gap-2 items-center">
 
@@ -223,7 +222,7 @@ export default function AnnualReport() {
         }
       />
 
-      <Card className="mt-4 glass-panel border-0">
+      <Card className="glass-panel border-0">
 
         <CardHeader>
 
@@ -501,9 +500,9 @@ function GreetingReviewCard({ year }: { year: number }) {
                 {r.source === 'ai' && (
                   <span className="rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2 py-0.5">AI</span>
                 )}
-                <span className="text-slate-400">{r.channel}</span>
+                <span className="text-hint">{r.channel}</span>
                 <span className={
-                  r.status === 'sent' ? 'text-emerald-600' : r.status === 'failed' ? 'text-red-500' : 'text-slate-400'
+                  r.status === 'sent' ? 'text-emerald-600' : r.status === 'failed' ? 'text-red-500' : 'text-hint'
                 }>
                   {r.status === 'sent' ? '已发送' : r.status === 'failed' ? '失败' : r.status === 'draft' ? '草稿' : r.status}
                 </span>
@@ -512,7 +511,7 @@ function GreetingReviewCard({ year }: { year: number }) {
           ))}
         </ul>
         {rows.length > 30 && (
-          <p className="text-xs text-slate-400 mt-2">仅显示最近 30 条，共 {rows.length} 条</p>
+          <p className="text-xs text-hint mt-2">仅显示最近 30 条，共 {rows.length} 条</p>
         )}
       </CardContent>
     </Card>

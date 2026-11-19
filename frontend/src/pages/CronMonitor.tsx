@@ -76,8 +76,8 @@ export default function CronMonitor() {
   };
 
   return (
-    <div className="min-h-screen p-6 max-w-4xl mx-auto">
-      {/* 根容器自带 p-6，抵消 PageHeader 的 px-4 保持与卡片左缘对齐 */}
+    <div id="main-content" className="min-h-screen px-4 py-6 md:px-6 max-w-4xl mx-auto" tabIndex={-1}>
+      {/* 根容器自带侧距，抵消 PageHeader 的 px-4 保持与卡片左缘对齐 */}
       <PageHeader
         title="Cron 监控"
         subtitle={overallSuccess !== null ? `近 ${recent.length} 次执行成功率 ${overallSuccess}%` : undefined}
@@ -90,7 +90,6 @@ export default function CronMonitor() {
         }
         onRefresh={load}
         refreshing={loading}
-        className="mb-6 -mx-4"
       />
       {runNotice && (
         <div
@@ -131,7 +130,7 @@ export default function CronMonitor() {
                       <span className={job.status === 'success' ? 'text-emerald-600' : 'text-red-500'}>{job.status}</span>
                     </span>
                   </div>
-                  <div className="text-slate-400 mt-0.5">
+                  <div className="text-hint mt-0.5">
                     {job.executed_at ? new Date(job.executed_at).toLocaleString('zh-CN') : ''}
                     {typeof job.duration_ms === 'number' ? ` · ${job.duration_ms}ms` : ''}
                   </div>
@@ -178,7 +177,7 @@ export default function CronMonitor() {
               <div className="text-xs text-slate-500 dark:text-slate-400">{log.executed_at}</div>
               <div className={`text-sm mt-1 ${log.status === 'success' ? '' : 'text-red-500 break-words'}`}>
                 {log.result_summary || log.error_message || '—'}
-                {typeof log.duration_ms === 'number' && <span className="ml-2 text-xs text-slate-400">{log.duration_ms}ms</span>}
+                {typeof log.duration_ms === 'number' && <span className="ml-2 text-xs text-hint">{log.duration_ms}ms</span>}
               </div>
             </div>
             <span className={`text-sm font-medium ${log.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>{log.status}</span>

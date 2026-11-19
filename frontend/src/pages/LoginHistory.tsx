@@ -152,7 +152,7 @@ export default function LoginHistory() {
         onRefresh={fetchLogs}
         refreshing={loading}
       />
-      <main className="max-w-4xl mx-auto px-6 py-10 mt-2">
+      <main id="main-content" className="max-w-4xl mx-auto px-6 pb-10" tabIndex={-1}>
         {loading ? (
           <SkeletonCard count={4} />
         ) : logs.length === 0 ? (
@@ -192,7 +192,7 @@ export default function LoginHistory() {
                             )}
                           </div>
                         </div>
-                        <div className="text-sm font-bold text-slate-400 whitespace-nowrap bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-lg">
+                        <div className="text-sm font-bold text-hint whitespace-nowrap bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-lg">
                           {formatTime(log.login_time)}
                         </div>
                       </div>

@@ -204,7 +204,7 @@ export default function Calendar() {
           </div>
         }
       />
-      <div className="max-w-4xl mx-auto px-4 mt-2">
+      <div className="max-w-4xl mx-auto px-4">
         <div className="glass-panel rounded-full px-3 py-2 flex items-center justify-between ring-1 ring-black/5 dark:ring-white/10">
           <Button variant="ghost" size="icon" onClick={goPrev} aria-label="上一月">
             <ChevronLeft size={18} />
@@ -228,7 +228,7 @@ export default function Calendar() {
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-4 space-y-4">
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-4 space-y-4" tabIndex={-1}>
         {/* v2.27：加载失败不再是假空态 —— 显示错误 + 重试 */}
         {error && (
           <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-900/10 px-4 py-3 text-sm text-red-600 dark:text-red-300 flex items-center justify-between gap-3">
@@ -474,13 +474,13 @@ function MonthGrid({
                 </div>
               ))}
               {dayEvents.length > 2 && (
-                <div className="text-[10px] text-slate-400">+{dayEvents.length - 2}</div>
+                <div className="text-[10px] text-hint">+{dayEvents.length - 2}</div>
               )}
             </button>
           );
         })}
       </div>
-      <p className="text-[10px] text-slate-400 mt-2 text-center">单击选日期 · 双击进入日视图</p>
+      <p className="text-[10px] text-hint mt-2 text-center">单击选日期 · 双击进入日视图</p>
       {isYearCovered(year) && (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500 dark:text-slate-400" data-testid="holiday-legend">
           <span className="inline-flex items-center gap-1">
@@ -563,7 +563,7 @@ function EventListCompact({ events, showDate }: { events: Event[]; showDate?: bo
                 </p>
               )}
             </div>
-            <span className="text-xs text-slate-400 shrink-0">
+            <span className="text-xs text-hint shrink-0">
               {e.calendarType === 'lunar' ? '农历' : e.calendarType === 'both' ? '双历' : '公历'}
             </span>
           </div>

@@ -606,7 +606,7 @@ export default function Documents() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-6" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-6" tabIndex={-1}>
         <section aria-label="证件概览" className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard testId="documents-summary-total" label="全部证件" value={allItems.length} hint="当前用户全部项" />
           <SummaryCard testId="documents-summary-configured" label="已配置号码" value={configuredCount} hint="号码加密保存" />

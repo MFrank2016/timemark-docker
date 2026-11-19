@@ -231,7 +231,7 @@ export default function Goals() {
         }
       />
 
-      <main id="main-content" className="max-w-4xl mx-auto px-4 py-6 space-y-4" tabIndex={-1}>
+      <main id="main-content" className="max-w-4xl mx-auto px-4 pb-6 space-y-4" tabIndex={-1}>
         {/* v2.27 F43：排序工具条 */}
         <div className="flex flex-wrap gap-2 items-center">
           <select

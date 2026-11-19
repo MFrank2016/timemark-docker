@@ -56,7 +56,7 @@ export default function AgentConsole() {
         maxWidth="max-w-5xl"
       />
 
-      <main className="max-w-5xl mx-auto px-6 py-8 mt-2 space-y-6">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 pb-8 space-y-6" tabIndex={-1}>
         <DegradedBanner state={health} />
 
         <KillSwitch routines={data.routines} aiEnabled={health.aiEnabled} workerCount={data.workers.length} onChanged={refresh} />
