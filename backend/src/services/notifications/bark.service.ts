@@ -23,7 +23,7 @@ export async function sendBarkNotification(
     title = `📅 ${event.name}`;
     body = `📆 日期: ${event.date}\n🏷️ 类型: ${event.type}\n\n🎉 ${blessing}`;
   }
-  const response = await axios.post(`${serverUrl}/push`, {
+  const response = await axios.post(`${serverUrl.replace(/\/+$/, '')}/push`, {
     device_key: deviceKey,
     title,
     body,

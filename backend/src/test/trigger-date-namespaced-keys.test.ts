@@ -37,8 +37,8 @@ const TASKS_SOURCE = readFileSync(new URL('../jobs/tasks.ts', import.meta.url), 
 const TRIGGER_LOG_SERVICE_SOURCE = readFileSync(new URL('../services/trigger-log.service.ts', import.meta.url), 'utf8');
 
 /**
- * Mirror of the SQL guard in `/events/reminder-logs`:
- * `CASE WHEN trigger_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(trigger_date, 10) ELSE trigger_date END`
+ * Mirror of the SQL guard in `/events/reminder-logs`（SQLite 形态：GLOB + substr）：
+ * `CASE WHEN trigger_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(trigger_date, 1, 10) ELSE trigger_date END`
  */
 function projectTriggerDate(raw: string): string {
   return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : raw;
@@ -61,23 +61,26 @@ describe('namespaced snooze:event# keys survive the reminder-logs projection int
   });
 
   it('/events/reminder-logs SQL applies the CASE guard and never aliases a bare LEFT', () => {
+    // SQLite 无 `~` 正则与 LEFT()：改为 GLOB + substr，守卫语义不变
+    // （只有真日期前缀才截 10 位，snooze: 等命名键原样返回）。
     expect(EVENTS_ROUTE_SOURCE).toContain(
-      "CASE WHEN tl.trigger_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(tl.trigger_date, 10) ELSE tl.trigger_date END AS trigger_date",
+      "CASE WHEN tl.trigger_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(tl.trigger_date, 1, 10) ELSE tl.trigger_date END AS trigger_date",
     );
-    expect(EVENTS_ROUTE_SOURCE).not.toContain('LEFT(tl.trigger_date, 10) AS trigger_date');
+    expect(EVENTS_ROUTE_SOURCE).not.toContain('substr(tl.trigger_date, 1, 10) AS trigger_date');
   });
 });
 
 describe('namespaced keys are excluded from every day-based aggregation', () => {
   it('a snooze key prefix is not a ymd and can never equal the DB-local yesterday', () => {
     expect(SNOOZE_KEY.slice(0, 10)).not.toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(STATS_SOURCE).toContain("LEFT(trigger_date, 10) = (CURRENT_DATE - INTERVAL '1 day')::date::text");
+    expect(STATS_SOURCE).toContain("substr(trigger_date, 1, 10) = date('now', '-1 day')");
     // Equality only: a LIKE/comparison against a partial prefix would risk matching namespaced keys.
     expect(STATS_SOURCE).not.toContain('LIKE');
   });
 
   it('annual-report year filter excludes namespaced keys (prefix snoo is never a year)', () => {
-    expect(FEATURES_ROUTE_SOURCE).toContain('LEFT(trigger_date, 4) = $2::text');
+    // 转换器把 LEFT(x, n) 改写为 substr(x, 1, n)，前缀语义不变。
+    expect(FEATURES_ROUTE_SOURCE).toMatch(/LEFT\(trigger_date, 4\)|substr\(trigger_date, 1, 4\)/);
     expect(SNOOZE_KEY.slice(0, 4)).toBe('snoo');
     expect(/^\d{4}$/.test(SNOOZE_KEY.slice(0, 4))).toBe(false);
   });
@@ -108,9 +111,12 @@ describe('prefix audit: which key families can reach event_trigger_logs', () => 
     // The namespaced writer exists and its shape is snooze:event#<id>#<ISO>.
     expect(TASKS_SOURCE).toContain('return `snooze:event#${eventId}#${minute}`;');
     // Scheduled reminders pass the same `sendKey` (snooze key or ymd token) to recordEventTrigger.
-    expect(TASKS_SOURCE).toContain("await recordEventTrigger(event.id, event.user_id, 'scheduled', sendKey,");
+    // 源码可能被格式化器重排成多行，断言对空白不敏感。
+    // 源码可能被格式化器重排（换行/引号风格），断言对空白与引号都不敏感。
+    const flatTasks = TASKS_SOURCE.replace(/\s+/g, " ").replace(/"/g, "'");
+    expect(flatTasks).toContain("recordEventTrigger( event.id, event.user_id, 'scheduled', sendKey,");
     // The lunar-failure path passes a plain ymd.
-    expect(TASKS_SOURCE).toContain("await recordEventTrigger(event.id, event.user_id, 'scheduled', evalDay,");
+    expect(flatTasks).toContain("recordEventTrigger( event.id, event.user_id, 'scheduled', evalDay,");
 
     const callLines = TASKS_SOURCE.split('\n').filter((line) => line.includes('recordEventTrigger(') && !line.includes('import'));
     expect(callLines.length).toBeGreaterThanOrEqual(3);

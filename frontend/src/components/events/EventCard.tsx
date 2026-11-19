@@ -15,6 +15,7 @@ import {
   Moon,
   Copy,
   MoreVertical,
+  BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -158,9 +159,9 @@ export function EventCard({
       </div>
 
       {/* Header with event type */}
-      <div className="flex justify-between items-start mb-4 relative z-10">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex justify-between items-start gap-2 mb-3 md:mb-4 relative z-20">
+        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1 md:block">
+          <div className="flex items-center gap-2 min-w-0 flex-1 md:flex-none md:gap-3">
             {selectable && (
               <motion.div
                 initial={false}
@@ -185,75 +186,95 @@ export function EventCard({
             >
               {getEventTypeIcon(event.type)}
             </div>
-            <h3 className="text-base md:text-xl font-bold text-slate-900 dark:text-white tracking-tight line-clamp-1">
+            <h3 className="text-base md:text-xl font-bold text-slate-900 dark:text-white tracking-tight line-clamp-1 min-w-0 flex-1 md:flex-none">
               {event.name}
             </h3>
           </div>
-          <div className="flex items-center gap-2 mt-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-            <Calendar size={14} />
-            <span>{displayDate}</span>
-            <Badge variant="secondary" className="px-2 py-0.5 text-[10px]">
-              {event.calendarType === "lunar"
-                ? "农历"
-                : event.calendarType === "both"
-                  ? "双历"
-                  : "公历"}
-            </Badge>
+          <div className="flex flex-col items-end gap-0.5 shrink-0 max-w-24 md:contents">
+            <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium md:mt-2 md:gap-2 md:text-sm">
+              <Calendar size={14} className="hidden md:block" />
+              <span className="truncate">{displayDate}</span>
+              <Badge
+                variant="secondary"
+                className="px-1 py-0 text-[9px] leading-none md:px-2 md:py-0.5 md:text-[10px]"
+              >
+                {event.calendarType === "lunar"
+                  ? "农历"
+                  : event.calendarType === "both"
+                    ? "双历"
+                    : "公历"}
+              </Badge>
+            </div>
+            {lunarInfo.label && (
+              <div
+                className="flex items-center gap-1 min-w-0 text-[10px] text-slate-500 dark:text-slate-400 relative z-10 md:mt-1 md:gap-2 md:text-xs"
+                data-testid="event-lunar-date"
+              >
+                <Moon
+                  size={12}
+                  className="text-primary-500 hidden shrink-0 md:block"
+                />
+                <span className="truncate">{lunarInfo.label}</span>
+              </div>
+            )}
+            {lunarInfo.error && !lunarInfo.label && (
+              <div
+                className="flex items-center gap-1 min-w-0 text-[10px] text-amber-600 dark:text-amber-300 relative z-10 md:mt-1 md:gap-2 md:text-xs"
+                data-testid="event-lunar-error"
+                title={lunarInfo.error}
+              >
+                <Moon size={12} className="hidden shrink-0 md:block" />
+                <span className="truncate">{lunarInfo.error}</span>
+              </div>
+            )}
           </div>
-          {lunarInfo.label && (
-            <div
-              className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400 relative z-10"
-              data-testid="event-lunar-date"
-            >
-              <Moon size={12} className="text-primary-500" />
-              <span>{lunarInfo.label}</span>
-            </div>
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          {event.reminderConfig?.enabled && (
+            <BellRing
+              size={16}
+              role="img"
+              aria-label="已启用提醒"
+              title="已启用提醒"
+              className="shrink-0 text-emerald-500 dark:text-emerald-400 md:hidden"
+            />
           )}
-          {lunarInfo.error && !lunarInfo.label && (
-            <div
-              className="flex items-center gap-2 mt-1 text-xs text-amber-600 dark:text-amber-300 relative z-10"
-              data-testid="event-lunar-error"
-            >
-              <Moon size={12} />
-              <span>{lunarInfo.error}</span>
-            </div>
+          {!selectable && (
+            <ActionMenu
+              className="md:hidden shrink-0"
+              align="end"
+              icon={MoreVertical}
+              triggerLabel="更多操作"
+              items={[
+                ...(onTestSend
+                  ? [
+                      {
+                        label: "测试发送",
+                        icon: Send,
+                        onSelect: () => onTestSend?.(event.id),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "复制日期",
+                  icon: Copy,
+                  onSelect: () =>
+                    navigator.clipboard
+                      .writeText(event.date)
+                      .catch(() => undefined),
+                },
+                { label: "编辑", icon: Edit2, onSelect: () => onEdit(event) },
+                {
+                  label: "删除",
+                  icon: Trash2,
+                  danger: true,
+                  dividerBefore: true,
+                  onSelect: () => onDelete(event.id),
+                },
+              ]}
+            />
           )}
         </div>
-        {!selectable && (
-          <ActionMenu
-            className="md:hidden shrink-0"
-            align="end"
-            icon={MoreVertical}
-            triggerLabel="更多操作"
-            items={[
-              ...(onTestSend
-                ? [
-                    {
-                      label: "测试发送",
-                      icon: Send,
-                      onSelect: () => onTestSend?.(event.id),
-                    },
-                  ]
-                : []),
-              {
-                label: "复制日期",
-                icon: Copy,
-                onSelect: () =>
-                  navigator.clipboard
-                    .writeText(event.date)
-                    .catch(() => undefined),
-              },
-              { label: "编辑", icon: Edit2, onSelect: () => onEdit(event) },
-              {
-                label: "删除",
-                icon: Trash2,
-                danger: true,
-                dividerBefore: true,
-                onSelect: () => onDelete(event.id),
-              },
-            ]}
-          />
-        )}
       </div>
 
       {/* Person name if exists */}
@@ -305,7 +326,7 @@ export function EventCard({
 
       {/* Reminder status */}
       {event.reminderConfig?.enabled && (
-        <div className="mb-1.5 md:mb-4 text-[11px] md:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 relative z-10">
+        <div className="mb-1.5 md:mb-4 text-[11px] md:text-xs text-slate-500 dark:text-slate-400 hidden md:flex items-center gap-2 relative z-10">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
           <span>已启用提醒</span>
           {event.reminderConfig.daysBeforeList &&

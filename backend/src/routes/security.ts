@@ -242,7 +242,7 @@ security.post('/totp/disable', async (c) => {
   // Clearing the recovery codes too: they authenticate the same secret this action removes,
   // and a stale unconsumed code would keep working after 2FA is re-enabled later.
   await query(
-    `UPDATE users SET totp_secret = NULL, totp_enabled = FALSE, totp_recovery_codes = '[]'::jsonb WHERE id = $1`,
+    `UPDATE users SET totp_secret = NULL, totp_enabled = FALSE, totp_recovery_codes = '[]' WHERE id = $1`,
     [parseInt(user.id, 10)],
   );
   await logSecurityEvent({

@@ -320,7 +320,8 @@ export async function updateHouseholdListItem(
   const userIndex = values.length;
 
   const result = await query(
-    `UPDATE household_list_items i SET ${sets.join(', ')}
+    // SQLite 支持 `UPDATE tbl AS alias`（但不支持裸 `UPDATE tbl alias`），故补 AS。
+    `UPDATE household_list_items AS i SET ${sets.join(', ')}
      WHERE i.id = $${idIndex} AND i.list_id = $${listIndex}
        AND EXISTS (SELECT 1 FROM household_lists l WHERE l.id = i.list_id AND l.user_id = $${userIndex})
      RETURNING ${ITEM_COLUMNS}`,
@@ -344,7 +345,8 @@ export async function setHouseholdListItemChecked(
   checked: boolean,
 ): Promise<HouseholdListItem | null> {
   const updated = await query(
-    `UPDATE household_list_items i
+    // SQLite 支持 `UPDATE tbl AS alias`（但不支持裸 `UPDATE tbl alias`），故补 AS。
+    `UPDATE household_list_items AS i
      SET checked = $4, checked_at = CASE WHEN $4 THEN now() ELSE NULL END, updated_at = now()
      WHERE i.id = $3 AND i.list_id = $2 AND i.checked <> $4
        AND EXISTS (SELECT 1 FROM household_lists l WHERE l.id = i.list_id AND l.user_id = $1)
@@ -375,7 +377,8 @@ export async function deleteHouseholdListItem(
   itemId: number,
 ): Promise<boolean> {
   const result = await query(
-    `DELETE FROM household_list_items i
+    // SQLite 支持 `DELETE FROM tbl AS alias`（但不支持裸别名），故补 AS。
+    `DELETE FROM household_list_items AS i
      WHERE i.id = $1 AND i.list_id = $2
        AND EXISTS (SELECT 1 FROM household_lists l WHERE l.id = i.list_id AND l.user_id = $3)`,
     [itemId, listId, userId],

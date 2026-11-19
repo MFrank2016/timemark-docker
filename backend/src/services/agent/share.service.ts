@@ -182,7 +182,7 @@ export async function createShareToken(
   const result = await query(
     `INSERT INTO share_tokens
        (user_id, token_hash, scope_type, scope_profile_id, scope_tag, scope_list_id, label, passcode_hash, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + ($9 || ' days')::interval)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, datetime('now', '+' || $9 || ' days'))
      RETURNING *`,
     [userId, hashShareToken(raw), scopeType, profileId, tag, listId, input.label ?? null, passcodeHash, String(days)],
   );
@@ -293,8 +293,11 @@ export async function buildScopedView(
   // Tag scope: events carry a JSONB `tags` array; fixed_contacts has no tag
   // column, so a tag share exposes events only.
   const events = await query(
-    `SELECT ${EVENT_COLUMNS} FROM events WHERE user_id = $1 AND tags @> $2::jsonb ORDER BY date ASC, id ASC LIMIT ${SHARE_VIEW_LIMIT}`,
-    [userId, JSON.stringify([tag])],
+    // SQLite 无 `@>`：PG 的 `tags @> '["x"]'` = 数组含元素 x，改为 json_each + 值比较。
+    `SELECT ${EVENT_COLUMNS} FROM events WHERE user_id = $1
+       AND EXISTS (SELECT 1 FROM json_each(tags) WHERE value = $2)
+     ORDER BY date ASC, id ASC LIMIT ${SHARE_VIEW_LIMIT}`,
+    [userId, tag],
   );
   return { scopeType, scopeLabel, events: events.rows as SharedEvent[], contacts: [], listItems: [] };
 }

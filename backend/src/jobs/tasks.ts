@@ -1,5 +1,5 @@
-import { query } from '../db/index.js';
-import { Lunar } from 'lunar-javascript';
+import { query } from "../db/index.js";
+import { Lunar } from "lunar-javascript";
 import {
   buildReminderSendKey,
   diffCalendarDays,
@@ -8,31 +8,34 @@ import {
   resolveNextGregorianOccurrence,
   toYmdString,
   REMINDER_CATCH_UP_MAX_MINUTES,
-} from '@timemark/shared/event-schedule';
+} from "@timemark/shared/event-schedule";
 import {
   buildExpirySendKey,
   DEFAULT_EXPIRY_LEAD_DAYS,
   DEFAULT_EXPIRY_REMINDER_TIMES,
   expiryEventType,
-} from '@timemark/shared/expiry-schedule';
+} from "@timemark/shared/expiry-schedule";
 import {
   buildInventorySendKey,
   inventoryEventType,
-} from '@timemark/shared/inventory-schedule';
+} from "@timemark/shared/inventory-schedule";
 import {
   buildMaintenanceSendKey,
   buildMaintenanceUsageKey,
   maintenanceEventType,
   usageNeedsNudge,
   USAGE_NUDGE_RATIO,
-} from '@timemark/shared/maintenance-schedule';
+} from "@timemark/shared/maintenance-schedule";
 import {
   buildDocumentExpiredKey,
   buildDocumentSendKey,
   documentEventType,
   documentLeadDays,
-} from '@timemark/shared/document-schedule';
-import { buildCadenceSendKey, isCadenceDue } from '@timemark/shared/contact-cadence';
+} from "@timemark/shared/document-schedule";
+import {
+  buildCadenceSendKey,
+  isCadenceDue,
+} from "@timemark/shared/contact-cadence";
 import {
   buildHabitReminderSendKey,
   buildHabitRiskSendKey,
@@ -40,7 +43,7 @@ import {
   isHabitScheduledOn,
   normalizeReminderTimes,
   normalizeScheduleDays,
-} from '@timemark/shared/habit-schedule';
+} from "@timemark/shared/habit-schedule";
 import {
   MEDICATION_ESCALATION_MINUTES,
   MEDICATION_REMINDER_WINDOW_MINUTES,
@@ -48,38 +51,45 @@ import {
   buildDoseReminderKey,
   isWithinMinutes,
   readDelivery,
-} from '@timemark/shared';
-import { sendNotifications, isInQuietHours } from '../services/notifications/index.js';
-import { createInboxMessage } from '../services/inbox.service.js';
-import { refreshUserEventCache } from '../services/event-cache.service.js';
+} from "@timemark/shared";
+import {
+  sendNotifications,
+  isInQuietHours,
+} from "../services/notifications/index.js";
+import { createInboxMessage } from "../services/inbox.service.js";
+import { refreshUserEventCache } from "../services/event-cache.service.js";
 import {
   holidayContextLabel,
   jieqiOn,
   normalizeJieqiList,
   resolveHolidayEvalDays,
   resolveHolidayMode,
-} from '../services/holiday-reminder.service.js';
-import { createLogger } from '../utils/logger.js';
-import { decryptFieldValue } from '../services/field-encryption.service.js';
-import { recordEventTrigger } from '../services/trigger-log.service.js';
+} from "../services/holiday-reminder.service.js";
+import { createLogger } from "../utils/logger.js";
+import { decryptFieldValue } from "../services/field-encryption.service.js";
+import { recordEventTrigger } from "../services/trigger-log.service.js";
 import {
   resolveBirthdayGreeting,
   deliverBirthdayGreeting,
   type BirthdayGreetingEvent,
   type BirthdayGreetingResolution,
-} from '../services/birthday-greeting.service.js';
-import { getSyncedNow, scheduleTimeSync, DEFAULT_SYNC_TIMEZONE } from '../utils/ntp.js';
+} from "../services/birthday-greeting.service.js";
+import {
+  getSyncedNow,
+  scheduleTimeSync,
+  DEFAULT_SYNC_TIMEZONE,
+} from "../utils/ntp.js";
 
-const log = createLogger('tasks');
+const log = createLogger("tasks");
 // Batch query replaces per-user getReminderSettings/getUserConfig calls
 
 /** Get today's date string (YYYY-MM-DD) in the given timezone, robust on Alpine Linux */
 function getTodayString(now: Date, timeZone: string): string {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
   return formatter.format(now); // en-CA outputs YYYY-MM-DD
 }
@@ -87,7 +97,7 @@ function getTodayString(now: Date, timeZone: string): string {
 function parseJsonField<T>(raw: unknown): T | null {
   if (!raw) return null;
   try {
-    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as T;
   } catch {
     return null;
   }
@@ -104,7 +114,10 @@ function resolveGregorianTarget(
   },
   allDays: number[],
 ): { targetDate: Date; daysUntil: number } | null {
-  const recurringConfig = parseJsonField<{ enabled?: boolean; frequency?: string }>(event.recurring_config);
+  const recurringConfig = parseJsonField<{
+    enabled?: boolean;
+    frequency?: string;
+  }>(event.recurring_config);
   const nextOccurrence = resolveNextGregorianOccurrence(event.date, today, {
     eventType: event.type,
     recurringConfig,
@@ -112,28 +125,37 @@ function resolveGregorianTarget(
   });
   const diff = diffCalendarDays(today, nextOccurrence);
   if (diff >= 0 && allDays.includes(diff)) {
-    return { targetDate: new Date(nextOccurrence + 'T00:00:00Z'), daysUntil: diff };
+    return {
+      targetDate: new Date(nextOccurrence + "T00:00:00Z"),
+      daysUntil: diff,
+    };
   }
   return null;
 }
 
 /** Resolve lunar date to next matching gregorian target within current/next lunar year */
-function resolveLunarTarget(today: string, lunarDateRaw: unknown, allDays: number[], now: Date): Date | null {
-    const lunarData = typeof lunarDateRaw === 'string' ? JSON.parse(lunarDateRaw) : lunarDateRaw;
-    if (!lunarData?.month || !lunarData?.day) return null;
+function resolveLunarTarget(
+  today: string,
+  lunarDateRaw: unknown,
+  allDays: number[],
+  now: Date,
+): Date | null {
+  const lunarData =
+    typeof lunarDateRaw === "string" ? JSON.parse(lunarDateRaw) : lunarDateRaw;
+  if (!lunarData?.month || !lunarData?.day) return null;
 
-    const month = lunarData.isLeap ? -lunarData.month : lunarData.month;
-    const currentYear = now.getFullYear();
+  const month = lunarData.isLeap ? -lunarData.month : lunarData.month;
+  const currentYear = now.getFullYear();
 
-    for (const year of [currentYear, currentYear + 1]) {
-      const tryLunarDate = Lunar.fromYmd(year, month, lunarData.day);
-      const trySolar = tryLunarDate.getSolar();
-      const tryDateStr = `${trySolar.getYear()}-${String(trySolar.getMonth()).padStart(2, '0')}-${String(trySolar.getDay()).padStart(2, '0')}`;
-      const diff = diffCalendarDays(today, tryDateStr);
-      if (diff >= 0 && allDays.includes(diff)) {
-        return new Date(tryDateStr + 'T00:00:00Z');
-      }
+  for (const year of [currentYear, currentYear + 1]) {
+    const tryLunarDate = Lunar.fromYmd(year, month, lunarData.day);
+    const trySolar = tryLunarDate.getSolar();
+    const tryDateStr = `${trySolar.getYear()}-${String(trySolar.getMonth()).padStart(2, "0")}-${String(trySolar.getDay()).padStart(2, "0")}`;
+    const diff = diffCalendarDays(today, tryDateStr);
+    if (diff >= 0 && allDays.includes(diff)) {
+      return new Date(tryDateStr + "T00:00:00Z");
     }
+  }
   return null;
 }
 
@@ -141,27 +163,33 @@ function resolveLunarTarget(today: string, lunarDateRaw: unknown, allDays: numbe
 function parseReminderDays(raw: any): number[] | null {
   if (!raw) return null;
   try {
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((n: any) => typeof n === 'number' && n >= 0)) {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (
+      Array.isArray(parsed) &&
+      parsed.length > 0 &&
+      parsed.every((n: any) => typeof n === "number" && n >= 0)
+    ) {
       return parsed;
     }
-  } catch { /* ignore parse errors */ }
+  } catch {
+    /* ignore parse errors */
+  }
   return null;
 }
 
 /** 当前 HH:mm（按用户时区），与事件提醒使用同一套 Intl 逻辑 */
 function getCurrentHHmm(now: Date, timeZone: string): string {
-  const hour = new Intl.DateTimeFormat('en-US', {
+  const hour = new Intl.DateTimeFormat("en-US", {
     timeZone,
-    hour: '2-digit',
+    hour: "2-digit",
     hour12: false,
   }).format(now);
-  const minute = new Intl.DateTimeFormat('en-US', {
+  const minute = new Intl.DateTimeFormat("en-US", {
     timeZone,
-    minute: '2-digit',
+    minute: "2-digit",
     hour12: false,
   }).format(now);
-  return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
 }
 
 /** ±2 分钟提醒窗口（与 matchesReminderTimeWindow 的默认值一致，checkbox 97）。 */
@@ -186,16 +214,25 @@ export const REMINDER_CATCH_UP_DEFAULT_MINUTES = 10;
  * 解析补发窗口（分钟）：环境变量 REMINDER_CATCHUP_GRACE_MINUTES。
  * 缺失 / 非法 -> 默认 10；夹取到 [0, 60]（0 = 关闭补发，恢复旧的 ±2 分钟行为）。
  */
-export function resolveReminderCatchUpMinutes(env: NodeJS.ProcessEnv = process.env): number {
+export function resolveReminderCatchUpMinutes(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
   const raw = env.REMINDER_CATCHUP_GRACE_MINUTES;
-  if (raw === undefined || raw === '') return REMINDER_CATCH_UP_DEFAULT_MINUTES;
+  if (raw === undefined || raw === "") return REMINDER_CATCH_UP_DEFAULT_MINUTES;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return REMINDER_CATCH_UP_DEFAULT_MINUTES;
-  return Math.min(Math.max(Math.trunc(parsed), 0), REMINDER_CATCH_UP_MAX_MINUTES);
+  return Math.min(
+    Math.max(Math.trunc(parsed), 0),
+    REMINDER_CATCH_UP_MAX_MINUTES,
+  );
 }
 
 /** 命中补发（迟到超过准时窗口）时返回迟到分钟数；准时命中 / 提前命中返回 null。 */
-function catchUpLateMinutes(currentTime: string, targetTime: string, windowMinutes = 2): number | null {
+function catchUpLateMinutes(
+  currentTime: string,
+  targetTime: string,
+  windowMinutes = 2,
+): number | null {
   const offset = reminderOffsetMinutes(currentTime, targetTime);
   return offset !== null && offset > windowMinutes ? offset : null;
 }
@@ -205,21 +242,36 @@ function catchUpLateMinutes(currentTime: string, targetTime: string, windowMinut
  * 部署级 env/默认值。分钟差是同日算术，迟到方向绝不越过今天，所以 1440（一整天）
  * 也只是「把今天漏掉的槽位补齐」，不会卷进昨天的槽位。
  */
-export function resolveUserCatchUpMinutes(rawValue: unknown, deploymentDefault: number): number {
-  if (rawValue === null || rawValue === undefined || rawValue === '') return deploymentDefault;
+export function resolveUserCatchUpMinutes(
+  rawValue: unknown,
+  deploymentDefault: number,
+): number {
+  if (rawValue === null || rawValue === undefined || rawValue === "")
+    return deploymentDefault;
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed)) return deploymentDefault;
-  return Math.min(Math.max(Math.trunc(parsed), 0), REMINDER_CATCH_UP_MAX_MINUTES);
+  return Math.min(
+    Math.max(Math.trunc(parsed), 0),
+    REMINDER_CATCH_UP_MAX_MINUTES,
+  );
 }
 
 /**
  * Checkbox 166：补发投递可观测。与 >3 分钟间隔告警共用 CRON_GAP_ALERT_MINUTES 阈值，
  * warn 级别一条结构化日志；告警本身仍由 routes/cron.ts 的 checkCronGapAlert 执行。
  */
-function logReminderCatchUp(slot: Record<string, unknown>, lateMinutes: number): void {
+function logReminderCatchUp(
+  slot: Record<string, unknown>,
+  lateMinutes: number,
+): void {
   log.warn(
-    { event: 'cron.reminder_catchup', lateMinutes, gapAlertMinutes: CRON_GAP_ALERT_MINUTES, ...slot },
-    'Reminder catch-up: missed slot delivered after a cron gap',
+    {
+      event: "cron.reminder_catchup",
+      lateMinutes,
+      gapAlertMinutes: CRON_GAP_ALERT_MINUTES,
+      ...slot,
+    },
+    "Reminder catch-up: missed slot delivered after a cron gap",
   );
 }
 
@@ -241,17 +293,17 @@ export function evaluateSnoozeWindow(
   rawSnoozedUntil: unknown,
   nowMs: number,
   windowMs: number = SNOOZE_WINDOW_MS,
-): { state: 'none' | 'pending' | 'due'; atMs?: number } {
-  if (rawSnoozedUntil == null) return { state: 'none' };
+): { state: "none" | "pending" | "due"; atMs?: number } {
+  if (rawSnoozedUntil == null) return { state: "none" };
   const atMs =
     rawSnoozedUntil instanceof Date
       ? rawSnoozedUntil.getTime()
       : Date.parse(String(rawSnoozedUntil));
-  if (!Number.isFinite(atMs)) return { state: 'none' };
+  if (!Number.isFinite(atMs)) return { state: "none" };
   const diff = atMs - nowMs;
-  if (diff > windowMs) return { state: 'pending', atMs };
-  if (diff < -windowMs) return { state: 'none' };
-  return { state: 'due', atMs };
+  if (diff > windowMs) return { state: "pending", atMs };
+  if (diff < -windowMs) return { state: "none" };
+  return { state: "due", atMs };
 }
 
 /**
@@ -259,8 +311,13 @@ export function evaluateSnoozeWindow(
  * (minute-truncated deadline) yet distinct per snooze instance, and namespaced so it can
  * never collide with a normal `YYYY-MM-DD#d<n>#tHH:mm` claim or a medication key.
  */
-export function buildSnoozeSendKey(eventId: number, snoozedUntilMs: number): string {
-  const minute = new Date(Math.floor(snoozedUntilMs / 60_000) * 60_000).toISOString();
+export function buildSnoozeSendKey(
+  eventId: number,
+  snoozedUntilMs: number,
+): string {
+  const minute = new Date(
+    Math.floor(snoozedUntilMs / 60_000) * 60_000,
+  ).toISOString();
   return `snooze:event#${eventId}#${minute}`;
 }
 
@@ -311,7 +368,11 @@ interface DatedReminderSource {
   label: string;
   /** 每个 kind 的默认提前天数（用户 reminder_config.daysBeforeList 优先） */
   defaultLeadDays: (kind: string) => readonly number[];
-  buildSendKey: (todayYmd: string, daysUntil: number, reminderTime: string) => string;
+  buildSendKey: (
+    todayYmd: string,
+    daysUntil: number,
+    reminderTime: string,
+  ) => string;
   /**
    * 过去到期日的「最终提醒」去重键。缺省 = 过去日期不提醒；
    * 提供时键必须不含今天日期（同一到期日恰好一次）。
@@ -328,14 +389,14 @@ interface DatedReminderSource {
 }
 
 const EXPIRY_SOURCE: DatedReminderSource = {
-  table: 'expiry_items',
-  alias: 'e',
-  dueColumn: 'next_due_date',
-  titleColumn: 'title',
-  kindColumn: 'kind',
-  defaultKind: 'custom',
-  extraWhere: '',
-  label: 'expiry',
+  table: "expiry_items",
+  alias: "e",
+  dueColumn: "next_due_date",
+  titleColumn: "title",
+  kindColumn: "kind",
+  defaultKind: "custom",
+  extraWhere: "",
+  label: "expiry",
   defaultLeadDays: () => DEFAULT_EXPIRY_LEAD_DAYS,
   buildSendKey: buildExpirySendKey,
   toEventType: (kind) => expiryEventType(kind),
@@ -343,15 +404,15 @@ const EXPIRY_SOURCE: DatedReminderSource = {
 };
 
 const INVENTORY_SOURCE: DatedReminderSource = {
-  table: 'inventory_items',
-  alias: 'i',
-  dueColumn: 'expires_at',
-  titleColumn: 'name',
-  kindColumn: 'category',
-  defaultKind: 'other',
+  table: "inventory_items",
+  alias: "i",
+  dueColumn: "expires_at",
+  titleColumn: "name",
+  kindColumn: "category",
+  defaultKind: "other",
   // 非易腐品（expires_at IS NULL）永不进入提醒候选
-  extraWhere: 'AND i.expires_at IS NOT NULL',
-  label: 'inventory',
+  extraWhere: "AND i.expires_at IS NOT NULL",
+  label: "inventory",
   defaultLeadDays: () => DEFAULT_EXPIRY_LEAD_DAYS,
   buildSendKey: buildInventorySendKey,
   toEventType: (kind) => inventoryEventType(kind),
@@ -359,17 +420,17 @@ const INVENTORY_SOURCE: DatedReminderSource = {
 };
 
 const MAINTENANCE_SOURCE: DatedReminderSource = {
-  table: 'maintenance_plans',
+  table: "maintenance_plans",
   // 唯一别名：runDatedReminderIterator 的 SELECT 同时 LEFT JOIN profiles p，
   // 用 `p` 会触发 Postgres `table name "p" specified more than once`。
-  alias: 'mp',
-  dueColumn: 'next_due_at',
-  titleColumn: 'asset_name',
-  kindColumn: 'asset_kind',
-  defaultKind: 'other',
+  alias: "mp",
+  dueColumn: "next_due_at",
+  titleColumn: "asset_name",
+  kindColumn: "asset_kind",
+  defaultKind: "other",
   // 仅按用量保养的计划没有日期提醒（next_due_at IS NULL）
-  extraWhere: 'AND mp.next_due_at IS NOT NULL',
-  label: 'maintenance',
+  extraWhere: "AND mp.next_due_at IS NOT NULL",
+  label: "maintenance",
   defaultLeadDays: () => DEFAULT_EXPIRY_LEAD_DAYS,
   buildSendKey: buildMaintenanceSendKey,
   toEventType: (kind) => maintenanceEventType(kind),
@@ -381,14 +442,14 @@ const MAINTENANCE_SOURCE: DatedReminderSource = {
  * [180,90,30,7,0]，其余 [90,30,7,0]；过期后发一条最终「已过期」提醒。
  */
 const DOCUMENT_SOURCE: DatedReminderSource = {
-  table: 'documents',
-  alias: 'd',
-  dueColumn: 'expires_at',
-  titleColumn: 'title',
-  kindColumn: 'kind',
-  defaultKind: 'other',
-  extraWhere: 'AND d.expires_at IS NOT NULL',
-  label: 'document',
+  table: "documents",
+  alias: "d",
+  dueColumn: "expires_at",
+  titleColumn: "title",
+  kindColumn: "kind",
+  defaultKind: "other",
+  extraWhere: "AND d.expires_at IS NOT NULL",
+  label: "document",
   defaultLeadDays: documentLeadDays,
   buildSendKey: buildDocumentSendKey,
   buildExpiredSendKey: buildDocumentExpiredKey,
@@ -401,7 +462,11 @@ const DOCUMENT_SOURCE: DatedReminderSource = {
 const DEFAULT_WATCHLIST_LEAD_DAYS = [7, 1, 0] as const;
 
 /** claim 键前缀 `watchlist:`，与 expiry/inventory/maintenance/document 互不冲突。 */
-function buildWatchlistSendKey(todayYmd: string, daysUntil: number, reminderTime: string): string {
+function buildWatchlistSendKey(
+  todayYmd: string,
+  daysUntil: number,
+  reminderTime: string,
+): string {
   return `watchlist:${todayYmd}#d${daysUntil}#t${reminderTime}`;
 }
 
@@ -412,14 +477,14 @@ function buildWatchlistSendKey(todayYmd: string, daysUntil: number, reminderTime
  * 绝不新建第二个调度器。
  */
 const WATCHLIST_SOURCE: DatedReminderSource = {
-  table: 'watchlist_items',
-  alias: 'w',
-  dueColumn: 'release_date',
-  titleColumn: 'title',
-  kindColumn: 'kind',
-  defaultKind: 'other',
+  table: "watchlist_items",
+  alias: "w",
+  dueColumn: "release_date",
+  titleColumn: "title",
+  kindColumn: "kind",
+  defaultKind: "other",
   extraWhere: `AND w.release_date IS NOT NULL AND w.status IN ('wanted', 'in_progress')`,
-  label: 'watchlist',
+  label: "watchlist",
   defaultLeadDays: () => DEFAULT_WATCHLIST_LEAD_DAYS,
   buildSendKey: buildWatchlistSendKey,
   toEventType: (kind) => `watchlist_${kind}`,
@@ -427,7 +492,9 @@ const WATCHLIST_SOURCE: DatedReminderSource = {
 };
 
 /** 想看清单发布提醒（task 157）：复用同一引擎，send key 带 `watchlist:` 前缀。 */
-export async function sendWatchlistReminders(now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE)): Promise<{
+export async function sendWatchlistReminders(
+  now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
+): Promise<{
   candidates: number;
   sent: number;
   claimed: number;
@@ -444,19 +511,26 @@ export async function sendWatchlistReminders(now: Date = getSyncedNow(DEFAULT_SY
  * 「未送达」处理——宁可下个窗口重试，也不能把失败的提醒当作已发送而永久丢失。
  * 只检查本次请求的渠道键；内部标记键（_quiet_hours / _skipped）不参与判定。
  */
-function deliveredToAnyChannel(results: unknown, channels: readonly string[]): boolean {
-  if (!results || typeof results !== 'object') return false;
+function deliveredToAnyChannel(
+  results: unknown,
+  channels: readonly string[],
+): boolean {
+  if (!results || typeof results !== "object") return false;
   const map = results as Record<string, unknown>;
   return channels.some((channel) => {
     const entry = map[channel];
-    return typeof entry === 'object' && entry !== null && (entry as { success?: unknown }).success === true;
+    return (
+      typeof entry === "object" &&
+      entry !== null &&
+      (entry as { success?: unknown }).success === true
+    );
   });
 }
 
 /**
  * 提醒槽位解析不到任何可送达渠道时写入的机器可读原因码。
  */
-export const NO_CHANNEL_RESOLVED_REASON = 'no_channel_resolved';
+export const NO_CHANNEL_RESOLVED_REASON = "no_channel_resolved";
 
 /**
  * checkbox 165：把「解析不到渠道而被跳过」的提醒写成一条 skipped 触发记录（提醒日志）。
@@ -482,7 +556,7 @@ export async function recordSkippedTrigger(
   triggerEventId: number | null,
   userId: number,
   triggerDate: string,
-  triggerType: string = 'scheduled',
+  triggerType: string = "scheduled",
 ): Promise<void> {
   try {
     const claim = await query(
@@ -491,7 +565,10 @@ export async function recordSkippedTrigger(
       [claimEventId, triggerDate],
     );
     if (claim.rows.length === 0) {
-      log.debug({ eventId: claimEventId, triggerDate }, 'Skipped reminder already recorded for this slot');
+      log.debug(
+        { eventId: claimEventId, triggerDate },
+        "Skipped reminder already recorded for this slot",
+      );
       return;
     }
     const recorded = await recordEventTrigger(
@@ -499,22 +576,33 @@ export async function recordSkippedTrigger(
       userId,
       triggerType,
       triggerDate,
-      'skipped',
+      "skipped",
       NO_CHANNEL_RESOLVED_REASON,
     );
     if (!recorded) {
       log.error(
-        { eventId: claimEventId, triggerDate, reason: NO_CHANNEL_RESOLVED_REASON },
-        'Trigger log write failed: skipped reminder not recorded in 提醒日志',
+        {
+          eventId: claimEventId,
+          triggerDate,
+          reason: NO_CHANNEL_RESOLVED_REASON,
+        },
+        "Trigger log write failed: skipped reminder not recorded in 提醒日志",
       );
       return;
     }
     log.info(
-      { eventId: claimEventId, triggerDate, reason: NO_CHANNEL_RESOLVED_REASON },
-      'Reminder skipped: no channel resolved',
+      {
+        eventId: claimEventId,
+        triggerDate,
+        reason: NO_CHANNEL_RESOLVED_REASON,
+      },
+      "Reminder skipped: no channel resolved",
     );
   } catch (error) {
-    log.error({ eventId: claimEventId, triggerDate, err: error }, 'Failed to record skipped reminder');
+    log.error(
+      { eventId: claimEventId, triggerDate, err: error },
+      "Failed to record skipped reminder",
+    );
   }
 }
 
@@ -525,14 +613,21 @@ export async function recordSkippedTrigger(
  */
 function resolveReminderTimeZone(row: Record<string, unknown>): string {
   const profileTz = row.profile_timezone;
-  if (typeof profileTz === 'string' && profileTz.trim()) return profileTz;
-  return typeof row.timezone === 'string' && row.timezone.trim() ? row.timezone : 'Asia/Shanghai';
+  if (typeof profileTz === "string" && profileTz.trim()) return profileTz;
+  return typeof row.timezone === "string" && row.timezone.trim()
+    ? row.timezone
+    : "Asia/Shanghai";
 }
 
 async function runDatedReminderIterator(
   source: DatedReminderSource,
   now: Date,
-): Promise<{ candidates: number; sent: number; claimed: number; skipped: number }> {
+): Promise<{
+  candidates: number;
+  sent: number;
+  claimed: number;
+  skipped: number;
+}> {
   const result = await query(
     `SELECT ${source.alias}.*, uc.timezone, uc.reminders_enabled, uc.holiday_reminder_mode, uc.reminder_catchup_minutes,
             p.timezone AS profile_timezone
@@ -577,10 +672,17 @@ async function runDatedReminderIterator(
     // checkbox 78: 非关键到期提醒的节假日调度（documents 显式关闭，保持逐字节不变）。
     // evalDays 顺序 = [今天, 最近的顺延源日, ...]；取第一个命中 → 每行每次最多一条。
     const evalDays = source.holidayAware
-      ? resolveHolidayEvalDays(today, resolveHolidayMode(raw.holiday_reminder_mode))
+      ? resolveHolidayEvalDays(
+          today,
+          resolveHolidayMode(raw.holiday_reminder_mode),
+        )
       : [today];
 
-    let chosen: { evalDay: string; daysUntil: number; isExpired: boolean } | null = null;
+    let chosen: {
+      evalDay: string;
+      daysUntil: number;
+      isExpired: boolean;
+    } | null = null;
     for (const evalDay of evalDays) {
       const daysUntil = diffCalendarDays(evalDay, due);
       const isExpired = daysUntil < 0;
@@ -599,13 +701,18 @@ async function runDatedReminderIterator(
       continue;
     }
     const { evalDay, daysUntil, isExpired } = chosen;
-    const holidayLabel = source.holidayAware ? holidayContextLabel(evalDay, today) : undefined;
+    const holidayLabel = source.holidayAware
+      ? holidayContextLabel(evalDay, today)
+      : undefined;
 
     const reminderTimes = config?.reminderTimes?.length
       ? config.reminderTimes
       : [...DEFAULT_EXPIRY_REMINDER_TIMES];
     const currentTime = getCurrentHHmm(now, timeZone);
-    const userCatchUp = resolveUserCatchUpMinutes(raw.reminder_catchup_minutes, deploymentCatchUp);
+    const userCatchUp = resolveUserCatchUpMinutes(
+      raw.reminder_catchup_minutes,
+      deploymentCatchUp,
+    );
     const matchedReminderTime = reminderTimes.find((time) =>
       matchesReminderTimeWindow(currentTime, time, 2, userCatchUp),
     );
@@ -615,8 +722,13 @@ async function runDatedReminderIterator(
     }
 
     const baseChannels = Array.isArray(config?.channels) ? config.channels : [];
-    const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
-    const channels = await resolveReminderChannels(userId, baseChannels, daysUntil);
+    const { resolveReminderChannels } =
+      await import("../services/reminder-channel-resolver.service.js");
+    const channels = await resolveReminderChannels(
+      userId,
+      baseChannels,
+      daysUntil,
+    );
 
     // 先算 send key：空渠道分支要用与发送完全相同的槽位键写 skipped 记录并去重。
     const sendKey = isExpired
@@ -647,13 +759,19 @@ async function runDatedReminderIterator(
     const lateMinutes = catchUpLateMinutes(currentTime, matchedReminderTime);
     if (lateMinutes !== null) {
       logReminderCatchUp(
-        { source: source.label, itemId: raw.id, daysUntil, sendKey, matchedReminderTime },
+        {
+          source: source.label,
+          itemId: raw.id,
+          daysUntil,
+          sendKey,
+          matchedReminderTime,
+        },
         lateMinutes,
       );
     }
 
     try {
-      const title = String(raw[source.titleColumn] ?? '');
+      const title = String(raw[source.titleColumn] ?? "");
       const notificationEvent = {
         // 故意不带 id：email_logs / notification_queue 的 event_id 外键指向 events
         id: null,
@@ -661,48 +779,95 @@ async function runDatedReminderIterator(
         name: title,
         type: source.toEventType(kind, daysUntil),
         date: due,
-        calendar_type: 'gregorian',
+        calendar_type: "gregorian",
         reminder_time: matchedReminderTime,
         reminder_config: config ?? null,
         reminderConfig: config ?? null,
         // 过期最终提醒带明确的「已过期」文案（渠道在无用户自定义模板时使用 customMessage）
-        ...(isExpired ? { customMessage: `⚠️ ${title} 已过期（到期日 ${due}），请尽快处理。` } : {}),
+        ...(isExpired
+          ? {
+              customMessage: `⚠️ ${title} 已过期（到期日 ${due}），请尽快处理。`,
+            }
+          : {}),
       };
-      const results = await sendNotifications(notificationEvent, userId, channels, {
-        // 档案级通知路由（checkbox 70）
-        profileId: (raw.profile_id ?? null) as number | null,
-        // checkbox 78: 仅非关键来源可能带节假日文案；documents 为 undefined（不变）
-        ...(holidayLabel ? { holidayLabel } : {}),
-      });
+      const results = await sendNotifications(
+        notificationEvent,
+        userId,
+        channels,
+        {
+          // 档案级通知路由（checkbox 70）
+          profileId: (raw.profile_id ?? null) as number | null,
+          // checkbox 78: 仅非关键来源可能带节假日文案；documents 为 undefined（不变）
+          ...(holidayLabel ? { holidayLabel } : {}),
+        },
+      );
       if (!deliveredToAnyChannel(results, channels)) {
         // 所有渠道都失败：释放 claim，让下个 ±2 分钟窗口重试
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [raw.id, sendKey]);
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [raw.id, sendKey],
+        );
         skipped += 1;
         log.warn(
-          { source: source.label, itemId: raw.id, kind, daysUntil, isExpired, matchedReminderTime, channels, results },
-          'Dated reminder delivered to no channel; claim released for retry',
+          {
+            source: source.label,
+            itemId: raw.id,
+            kind,
+            daysUntil,
+            isExpired,
+            matchedReminderTime,
+            channels,
+            results,
+          },
+          "Dated reminder delivered to no channel; claim released for retry",
         );
         continue;
       }
       sent += 1;
       log.info(
-        { source: source.label, itemId: raw.id, kind, daysUntil, isExpired, matchedReminderTime, channels, results },
-        'Dated reminder dispatched',
+        {
+          source: source.label,
+          itemId: raw.id,
+          kind,
+          daysUntil,
+          isExpired,
+          matchedReminderTime,
+          channels,
+          results,
+        },
+        "Dated reminder dispatched",
       );
     } catch (error) {
       // 释放 claim，让下个 ±2 分钟窗口可以重试
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [raw.id, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [raw.id, sendKey],
+      );
       skipped += 1;
-      log.error({ source: source.label, itemId: raw.id, err: error }, 'Failed to send dated reminder');
+      log.error(
+        { source: source.label, itemId: raw.id, err: error },
+        "Failed to send dated reminder",
+      );
     }
   }
 
-  log.info({ source: source.label, candidates: result.rows.length, sent, claimed, skipped }, 'Dated reminders checked');
+  log.info(
+    {
+      source: source.label,
+      candidates: result.rows.length,
+      sent,
+      claimed,
+      skipped,
+    },
+    "Dated reminders checked",
+  );
   return { candidates: result.rows.length, sent, claimed, skipped };
 }
 
 /** 到期项提醒（D1，todo 48）：复用同一引擎，send key 带 `expiry:` 前缀 */
-export async function sendExpiryReminders(now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE)): Promise<{
+export async function sendExpiryReminders(
+  now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
+): Promise<{
   candidates: number;
   sent: number;
   claimed: number;
@@ -712,7 +877,9 @@ export async function sendExpiryReminders(now: Date = getSyncedNow(DEFAULT_SYNC_
 }
 
 /** 库存到期提醒（D12，todo 49）：仅 expires_at 非空的行，send key 带 `inventory:` 前缀 */
-export async function sendInventoryReminders(now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE)): Promise<{
+export async function sendInventoryReminders(
+  now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
+): Promise<{
   candidates: number;
   sent: number;
   claimed: number;
@@ -722,7 +889,9 @@ export async function sendInventoryReminders(now: Date = getSyncedNow(DEFAULT_SY
 }
 
 /** 保养日期提醒（D12，todo 50）：仅 next_due_at 非空的行，send key 带 `maintenance:` 前缀 */
-export async function sendMaintenanceReminders(now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE)): Promise<{
+export async function sendMaintenanceReminders(
+  now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
+): Promise<{
   candidates: number;
   sent: number;
   claimed: number;
@@ -735,7 +904,9 @@ export async function sendMaintenanceReminders(now: Date = getSyncedNow(DEFAULT_
  * 证件到期提醒（D2，todo 55）：仅 expires_at 非空的证件，send key 带 `document:` 前缀。
  * passport/visa 默认 [180,90,30,7,0]，其余 [90,30,7,0]；过期后发一条「已过期」最终提醒。
  */
-export async function sendDocumentReminders(now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE)): Promise<{
+export async function sendDocumentReminders(
+  now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
+): Promise<{
   candidates: number;
   sent: number;
   claimed: number;
@@ -767,31 +938,36 @@ export interface CadenceReminderStats {
 export async function sendCadenceReminders(
   now: Date = getSyncedNow(DEFAULT_SYNC_TIMEZONE),
 ): Promise<CadenceReminderStats> {
+  // SQLite 无 LATERAL 与 make_interval(days=>)：
+  // - `LEFT JOIN LATERAL (... LIMIT 1) latest ON TRUE` → 两个相关标量子查询（各自独立取最近一条）
+  // - `COALESCE(...) + make_interval(days => fc.cadence_days) <= $1` → `date(..., '+' || days || ' days') <= $1`
   const result = await query(
     `SELECT fc.id, fc.user_id, fc.name, fc.nickname, fc.relationship,
             fc.cadence_days, fc.last_contact_at, fc.profile_id,
-            latest.occurred_at AS effective_last_contact_at,
-            latest.summary AS last_interaction_summary,
+            (SELECT i.occurred_at FROM interactions i
+              WHERE i.user_id = fc.user_id AND i.contact_id = fc.id
+              ORDER BY i.occurred_at DESC LIMIT 1) AS effective_last_contact_at,
+            (SELECT i.summary FROM interactions i
+              WHERE i.user_id = fc.user_id AND i.contact_id = fc.id
+              ORDER BY i.occurred_at DESC LIMIT 1) AS last_interaction_summary,
             uc.timezone, uc.reminders_enabled, p.timezone AS profile_timezone
      FROM fixed_contacts fc
      LEFT JOIN user_configs uc ON uc.user_id = fc.user_id
      LEFT JOIN profiles p ON p.id = fc.profile_id
-     LEFT JOIN LATERAL (
-       SELECT i.occurred_at, i.summary
-       FROM interactions i
-       WHERE i.user_id = fc.user_id AND i.contact_id = fc.id
-       ORDER BY i.occurred_at DESC
-       LIMIT 1
-     ) latest ON TRUE
      WHERE COALESCE(fc.cadence_enabled, FALSE) = TRUE
        AND fc.cadence_days IS NOT NULL
-       AND COALESCE(latest.occurred_at, fc.last_contact_at) IS NOT NULL
-       AND COALESCE(latest.occurred_at, fc.last_contact_at)
-           + make_interval(days => fc.cadence_days) <= $1`,
+       AND COALESCE((SELECT i.occurred_at FROM interactions i
+              WHERE i.user_id = fc.user_id AND i.contact_id = fc.id
+              ORDER BY i.occurred_at DESC LIMIT 1), fc.last_contact_at) IS NOT NULL
+       AND date(COALESCE((SELECT i.occurred_at FROM interactions i
+              WHERE i.user_id = fc.user_id AND i.contact_id = fc.id
+              ORDER BY i.occurred_at DESC LIMIT 1), fc.last_contact_at),
+            '+' || fc.cadence_days || ' days') <= $1`,
     [now],
   );
 
-  const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
+  const { resolveReminderChannels } =
+    await import("../services/reminder-channel-resolver.service.js");
   let sent = 0;
   let inbox = 0;
   let skipped = 0;
@@ -808,11 +984,14 @@ export async function sendCadenceReminders(
 
     // 从未联系（有效最后联系为 NULL）没有周期起点：跳过，不发「上次联系：从未」。
     const effectiveRaw = raw.effective_last_contact_at ?? raw.last_contact_at;
-    if (effectiveRaw == null || effectiveRaw === '') {
+    if (effectiveRaw == null || effectiveRaw === "") {
       skipped += 1;
       continue;
     }
-    const effectiveDate = effectiveRaw instanceof Date ? effectiveRaw : new Date(String(effectiveRaw));
+    const effectiveDate =
+      effectiveRaw instanceof Date
+        ? effectiveRaw
+        : new Date(String(effectiveRaw));
     if (Number.isNaN(effectiveDate.getTime())) {
       skipped += 1;
       continue;
@@ -840,25 +1019,35 @@ export async function sendCadenceReminders(
 
     const channels = await resolveReminderChannels(userId, [], 0);
     if (channels.length === 0) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [contactId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [contactId, sendKey],
+      );
       skipped += 1;
       continue;
     }
 
     try {
-      const name = String(raw.name ?? '');
-      const nickname = typeof raw.nickname === 'string' && raw.nickname.trim() ? raw.nickname.trim() : '';
+      const name = String(raw.name ?? "");
+      const nickname =
+        typeof raw.nickname === "string" && raw.nickname.trim()
+          ? raw.nickname.trim()
+          : "";
       const displayName = nickname || name;
-      const tag = typeof raw.relationship === 'string' && raw.relationship.trim() ? raw.relationship.trim() : '';
+      const tag =
+        typeof raw.relationship === "string" && raw.relationship.trim()
+          ? raw.relationship.trim()
+          : "";
       const summary =
-        typeof raw.last_interaction_summary === 'string' && raw.last_interaction_summary.trim()
-          ? decryptFieldValue(raw.last_interaction_summary.trim()) ?? ''
-          : '';
+        typeof raw.last_interaction_summary === "string" &&
+        raw.last_interaction_summary.trim()
+          ? (decryptFieldValue(raw.last_interaction_summary.trim()) ?? "")
+          : "";
       const customMessage = [
-        `🤝 关系维系提醒：${displayName}${tag ? `（${tag}）` : ''}`,
+        `🤝 关系维系提醒：${displayName}${tag ? `（${tag}）` : ""}`,
         summary ? `上次互动：${summary}` : `上次联系：${periodStart}`,
         `已超过 ${cadenceDays} 天没联系了，记得问候一下。`,
-      ].join('\n');
+      ].join("\n");
 
       const results = await sendNotifications(
         {
@@ -866,9 +1055,9 @@ export async function sendCadenceReminders(
           id: null,
           user_id: userId,
           name: displayName,
-          type: 'contact_cadence',
+          type: "contact_cadence",
           date: today,
-          calendar_type: 'gregorian',
+          calendar_type: "gregorian",
           reminder_time: getCurrentHHmm(now, timeZone),
           reminder_config: null,
           reminderConfig: null,
@@ -880,9 +1069,15 @@ export async function sendCadenceReminders(
       );
       if (!deliveredToAnyChannel(results, channels)) {
         // 所有渠道都失败：释放 claim，下个分钟窗口可重试
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [contactId, sendKey]);
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [contactId, sendKey],
+        );
         skipped += 1;
-        log.warn({ contactId, sendKey, channels, results }, 'Cadence reminder delivered to no channel; claim released');
+        log.warn(
+          { contactId, sendKey, channels, results },
+          "Cadence reminder delivered to no channel; claim released",
+        );
         continue;
       }
       sent += 1;
@@ -893,24 +1088,33 @@ export async function sendCadenceReminders(
           userId,
           title: `关系维系提醒：${displayName}`,
           body: `${customMessage}\n[已记录联系](/contacts?contactId=${contactId}&log=1)`,
-          source: 'inbound',
-          senderLabel: '联系节奏',
+          source: "inbound",
+          senderLabel: "联系节奏",
         });
         inbox += 1;
       } catch (error) {
         // 收件箱写入失败不影响已送达的外部提醒
-        log.warn({ contactId, err: error }, 'Cadence inbox message failed');
+        log.warn({ contactId, err: error }, "Cadence inbox message failed");
       }
 
-      log.info({ contactId, periodStart, cadenceDays, channels, results }, 'Cadence reminder dispatched');
+      log.info(
+        { contactId, periodStart, cadenceDays, channels, results },
+        "Cadence reminder dispatched",
+      );
     } catch (error) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [contactId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [contactId, sendKey],
+      );
       skipped += 1;
-      log.error({ contactId, err: error }, 'Failed to send cadence reminder');
+      log.error({ contactId, err: error }, "Failed to send cadence reminder");
     }
   }
 
-  log.info({ candidates: result.rows.length, sent, inbox, skipped }, 'Cadence reminders checked');
+  log.info(
+    { candidates: result.rows.length, sent, inbox, skipped },
+    "Cadence reminders checked",
+  );
   return { candidates: result.rows.length, sent, inbox, skipped };
 }
 
@@ -948,7 +1152,8 @@ export async function sendHabitReminders(
     [DEFAULT_HABIT_STREAK_NUDGE_HOUR],
   );
 
-  const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
+  const { resolveReminderChannels } =
+    await import("../services/reminder-channel-resolver.service.js");
   let reminded = 0;
   let riskNudged = 0;
   let skipped = 0;
@@ -973,19 +1178,19 @@ export async function sendHabitReminders(
 
     const currentTime = getCurrentHHmm(now, timeZone);
     const target = Math.max(1, Math.trunc(Number(raw.target_per_period) || 1));
-    const name = String(raw.name ?? '');
-    const periodLabel = raw.period === 'week' ? '周' : '天';
+    const name = String(raw.name ?? "");
+    const periodLabel = raw.period === "week" ? "周" : "天";
 
     const countResult = await query(
-      `SELECT COALESCE(SUM(count), 0)::int AS count
+      `SELECT CAST(COALESCE(SUM(count), 0) AS INTEGER) AS count
        FROM habit_logs WHERE habit_id = $1 AND user_id = $2 AND logged_on = $3::date`,
       [habitId, userId, today],
     );
     const todayCount = Number(countResult.rows[0]?.count ?? 0);
 
     // 1) 定时提醒（reminder_times）
-    const matchedTime = normalizeReminderTimes(raw.reminder_times ?? null).find((time) =>
-      matchesReminderTimeWindow(currentTime, time, 2, catchUpMinutes),
+    const matchedTime = normalizeReminderTimes(raw.reminder_times ?? null).find(
+      (time) => matchesReminderTimeWindow(currentTime, time, 2, catchUpMinutes),
     );
     if (matchedTime) {
       const sendKey = buildHabitReminderSendKey(habitId, today, matchedTime);
@@ -999,11 +1204,17 @@ export async function sendHabitReminders(
       } else {
         const habitLateMinutes = catchUpLateMinutes(currentTime, matchedTime);
         if (habitLateMinutes !== null) {
-          logReminderCatchUp({ habitId, sendKey, matchedTime }, habitLateMinutes);
+          logReminderCatchUp(
+            { habitId, sendKey, matchedTime },
+            habitLateMinutes,
+          );
         }
         const channels = await resolveReminderChannels(userId, [], 0);
         if (channels.length === 0) {
-          await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, sendKey]);
+          await query(
+            "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+            [habitId, sendKey],
+          );
           skipped += 1;
         } else {
           try {
@@ -1012,9 +1223,9 @@ export async function sendHabitReminders(
                 id: null,
                 user_id: userId,
                 name,
-                type: 'habit_reminder',
+                type: "habit_reminder",
                 date: today,
-                calendar_type: 'gregorian',
+                calendar_type: "gregorian",
                 reminder_time: matchedTime,
                 reminder_config: null,
                 reminderConfig: null,
@@ -1025,28 +1236,46 @@ export async function sendHabitReminders(
               { profileId: (raw.profile_id ?? null) as number | null },
             );
             if (!deliveredToAnyChannel(results, channels)) {
-              await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, sendKey]);
+              await query(
+                "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+                [habitId, sendKey],
+              );
               skipped += 1;
-              log.warn({ habitId, sendKey, channels, results }, 'Habit reminder delivered to no channel; claim released');
+              log.warn(
+                { habitId, sendKey, channels, results },
+                "Habit reminder delivered to no channel; claim released",
+              );
             } else {
               reminded += 1;
-              log.info({ habitId, matchedTime, channels }, 'Habit reminder dispatched');
+              log.info(
+                { habitId, matchedTime, channels },
+                "Habit reminder dispatched",
+              );
             }
           } catch (error) {
-            await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, sendKey]);
+            await query(
+              "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+              [habitId, sendKey],
+            );
             skipped += 1;
-            log.error({ habitId, err: error }, 'Failed to send habit reminder');
+            log.error({ habitId, err: error }, "Failed to send habit reminder");
           }
         }
       }
     }
 
     // 2) 连胜告急（默认 20:00，仅当当前周期未达标；每天至多一条）
-    const rawNudgeHour = typeof raw.habit_streak_nudge_hour === 'string' ? raw.habit_streak_nudge_hour : '';
+    const rawNudgeHour =
+      typeof raw.habit_streak_nudge_hour === "string"
+        ? raw.habit_streak_nudge_hour
+        : "";
     const nudgeHour = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawNudgeHour)
       ? rawNudgeHour
       : DEFAULT_HABIT_STREAK_NUDGE_HOUR;
-    if (todayCount < target && matchesReminderTimeWindow(currentTime, nudgeHour, 2, catchUpMinutes)) {
+    if (
+      todayCount < target &&
+      matchesReminderTimeWindow(currentTime, nudgeHour, 2, catchUpMinutes)
+    ) {
       const riskKey = buildHabitRiskSendKey(habitId, today);
       const claim = await query(
         `INSERT INTO reminder_send_claims (event_id, trigger_date) VALUES ($1, $2)
@@ -1058,11 +1287,17 @@ export async function sendHabitReminders(
       } else {
         const riskLateMinutes = catchUpLateMinutes(currentTime, nudgeHour);
         if (riskLateMinutes !== null) {
-          logReminderCatchUp({ habitId, sendKey: riskKey, nudgeHour }, riskLateMinutes);
+          logReminderCatchUp(
+            { habitId, sendKey: riskKey, nudgeHour },
+            riskLateMinutes,
+          );
         }
         const channels = await resolveReminderChannels(userId, [], 0);
         if (channels.length === 0) {
-          await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, riskKey]);
+          await query(
+            "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+            [habitId, riskKey],
+          );
           skipped += 1;
         } else {
           try {
@@ -1071,9 +1306,9 @@ export async function sendHabitReminders(
                 id: null,
                 user_id: userId,
                 name,
-                type: 'habit_streak_risk',
+                type: "habit_streak_risk",
                 date: today,
-                calendar_type: 'gregorian',
+                calendar_type: "gregorian",
                 reminder_time: nudgeHour,
                 reminder_config: null,
                 reminderConfig: null,
@@ -1084,24 +1319,42 @@ export async function sendHabitReminders(
               { profileId: (raw.profile_id ?? null) as number | null },
             );
             if (!deliveredToAnyChannel(results, channels)) {
-              await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, riskKey]);
+              await query(
+                "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+                [habitId, riskKey],
+              );
               skipped += 1;
-              log.warn({ habitId, riskKey, channels, results }, 'Habit streak-risk nudge delivered to no channel; claim released');
+              log.warn(
+                { habitId, riskKey, channels, results },
+                "Habit streak-risk nudge delivered to no channel; claim released",
+              );
             } else {
               riskNudged += 1;
-              log.info({ habitId, nudgeHour, todayCount, target, channels }, 'Habit streak-risk nudge dispatched');
+              log.info(
+                { habitId, nudgeHour, todayCount, target, channels },
+                "Habit streak-risk nudge dispatched",
+              );
             }
           } catch (error) {
-            await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [habitId, riskKey]);
+            await query(
+              "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+              [habitId, riskKey],
+            );
             skipped += 1;
-            log.error({ habitId, err: error }, 'Failed to send habit streak-risk nudge');
+            log.error(
+              { habitId, err: error },
+              "Failed to send habit streak-risk nudge",
+            );
           }
         }
       }
     }
   }
 
-  log.info({ candidates: result.rows.length, reminded, riskNudged, skipped }, 'Habit reminders checked');
+  log.info(
+    { candidates: result.rows.length, reminded, riskNudged, skipped },
+    "Habit reminders checked",
+  );
   return { candidates: result.rows.length, reminded, riskNudged, skipped };
 }
 
@@ -1167,25 +1420,34 @@ export async function sendMaintenanceUsageNudges(): Promise<{
     }
 
     try {
-      const unit = typeof raw.usage_unit === 'string' ? raw.usage_unit : '';
+      const unit = typeof raw.usage_unit === "string" ? raw.usage_unit : "";
       const remaining = (nextDueUsage as number) - (currentUsage as number);
       await createInboxMessage({
         userId: Number(raw.user_id),
         title: `保养提醒：${String(raw.asset_name)}`,
         body: `按用量保养临近：当前 ${currentUsage}${unit}，下次保养 ${nextDueUsage}${unit}（剩余 ${remaining}${unit}）`,
-        source: 'inbound',
-        senderLabel: '保养计划',
+        source: "inbound",
+        senderLabel: "保养计划",
       });
       nudged += 1;
     } catch (error) {
       // 释放 claim，下个分钟窗口可重试
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [planId, claimKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [planId, claimKey],
+      );
       skipped += 1;
-      log.error({ planId, err: error }, 'Failed to send maintenance usage nudge');
+      log.error(
+        { planId, err: error },
+        "Failed to send maintenance usage nudge",
+      );
     }
   }
 
-  log.info({ candidates: result.rows.length, nudged, skipped }, 'Maintenance usage nudges checked');
+  log.info(
+    { candidates: result.rows.length, nudged, skipped },
+    "Maintenance usage nudges checked",
+  );
   return { candidates: result.rows.length, nudged, skipped };
 }
 
@@ -1234,15 +1496,20 @@ export async function sendMedicationReminders(
 
   // 稍后提醒请求（med:snooze#…）批量取回，按 doseId 归组
   const snoozeByDose = new Map<number, string[]>();
-  const doseIds = rows.map((r) => Number(r.id)).filter((id) => Number.isInteger(id));
+  const doseIds = rows
+    .map((r) => Number(r.id))
+    .filter((id) => Number.isInteger(id));
   if (doseIds.length > 0) {
     const snoozeRows = await query(
       `SELECT event_id, trigger_date FROM reminder_send_claims
        WHERE event_id = ANY($1::int[]) AND trigger_date LIKE 'med:snooze#%'`,
       [doseIds],
     );
-    for (const claim of snoozeRows.rows as Array<{ event_id: number; trigger_date: string }>) {
-      const due = String(claim.trigger_date).split('#').pop() ?? '';
+    for (const claim of snoozeRows.rows as Array<{
+      event_id: number;
+      trigger_date: string;
+    }>) {
+      const due = String(claim.trigger_date).split("#").pop() ?? "";
       if (!due) continue;
       const list = snoozeByDose.get(Number(claim.event_id)) ?? [];
       list.push(due);
@@ -1250,7 +1517,8 @@ export async function sendMedicationReminders(
     }
   }
 
-  const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
+  const { resolveReminderChannels } =
+    await import("../services/reminder-channel-resolver.service.js");
   let reminded = 0;
   let snoozed = 0;
   let escalated = 0;
@@ -1274,20 +1542,23 @@ export async function sendMedicationReminders(
     const profileId = raw.profile_id == null ? null : Number(raw.profile_id);
     const isCritical = raw.is_critical === true;
 
-    const dueSnooze = (snoozeByDose.get(doseId) ?? [])
-      .filter((iso) => {
-        const t = new Date(iso);
-        return !Number.isNaN(t.getTime()) && t.getTime() <= now.getTime();
-      })
-      .sort()[0] ?? null;
+    const dueSnooze =
+      (snoozeByDose.get(doseId) ?? [])
+        .filter((iso) => {
+          const t = new Date(iso);
+          return !Number.isNaN(t.getTime()) && t.getTime() <= now.getTime();
+        })
+        .sort()[0] ?? null;
 
-    let kind: 'reminder' | 'snooze' | 'escalation' | null = null;
-    let sendKey = '';
+    let kind: "reminder" | "snooze" | "escalation" | null = null;
+    let sendKey = "";
     if (dueSnooze) {
-      kind = 'snooze';
+      kind = "snooze";
       sendKey = `med:snooze-sent#${doseId}#${dueSnooze}`;
-    } else if (isWithinMinutes(now, scheduled, MEDICATION_REMINDER_WINDOW_MINUTES)) {
-      kind = 'reminder';
+    } else if (
+      isWithinMinutes(now, scheduled, MEDICATION_REMINDER_WINDOW_MINUTES)
+    ) {
+      kind = "reminder";
       sendKey = buildDoseReminderKey(doseId, scheduled.toISOString());
     } else if (
       isWithinMinutes(
@@ -1296,7 +1567,7 @@ export async function sendMedicationReminders(
         MEDICATION_REMINDER_WINDOW_MINUTES,
       )
     ) {
-      kind = 'escalation';
+      kind = "escalation";
       sendKey = buildDoseEscalationKey(doseId, scheduled.toISOString());
     }
     if (!kind) {
@@ -1308,8 +1579,10 @@ export async function sendMedicationReminders(
     if (
       !isCritical &&
       isInQuietHours(
-        typeof raw.quiet_hours_start === 'string' ? raw.quiet_hours_start : null,
-        typeof raw.quiet_hours_end === 'string' ? raw.quiet_hours_end : null,
+        typeof raw.quiet_hours_start === "string"
+          ? raw.quiet_hours_start
+          : null,
+        typeof raw.quiet_hours_end === "string" ? raw.quiet_hours_end : null,
         timeZone,
       )
     ) {
@@ -1329,25 +1602,30 @@ export async function sendMedicationReminders(
 
     const channels = await resolveReminderChannels(userId, [], 0);
     if (channels.length === 0) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [doseId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [doseId, sendKey],
+      );
       skipped += 1;
       continue;
     }
 
-    const name = String(raw.name ?? '');
-    const dosage = raw.dosage == null ? '' : String(raw.dosage);
+    const name = String(raw.name ?? "");
+    const dosage = raw.dosage == null ? "" : String(raw.dosage);
     const doseTime = getCurrentHHmm(scheduled, timeZone);
-    const label = `${name}${dosage ? `（${dosage}）` : ''}`;
-    const customMessage = kind === 'escalation'
-      ? `⏰ 仍未记录服药：${label}（计划 ${doseTime}），请尽快服用或标记。`
-      : kind === 'snooze'
-        ? `💊 稍后提醒：该服用 ${label} 了（计划 ${doseTime}）。`
-        : `💊 服药提醒：${label}，请按计划服药（${doseTime}）。`;
-    const type = kind === 'escalation'
-      ? 'medication_escalation'
-      : kind === 'snooze'
-        ? 'medication_snooze'
-        : 'medication_reminder';
+    const label = `${name}${dosage ? `（${dosage}）` : ""}`;
+    const customMessage =
+      kind === "escalation"
+        ? `⏰ 仍未记录服药：${label}（计划 ${doseTime}），请尽快服用或标记。`
+        : kind === "snooze"
+          ? `💊 稍后提醒：该服用 ${label} 了（计划 ${doseTime}）。`
+          : `💊 服药提醒：${label}，请按计划服药（${doseTime}）。`;
+    const type =
+      kind === "escalation"
+        ? "medication_escalation"
+        : kind === "snooze"
+          ? "medication_snooze"
+          : "medication_reminder";
 
     try {
       const results = await sendNotifications(
@@ -1357,7 +1635,7 @@ export async function sendMedicationReminders(
           name,
           type,
           date: getTodayString(scheduled, timeZone),
-          calendar_type: 'gregorian',
+          calendar_type: "gregorian",
           reminder_time: doseTime,
           reminder_config: null,
           reminderConfig: null,
@@ -1369,23 +1647,38 @@ export async function sendMedicationReminders(
         { profileId, skipQuietHours: isCritical },
       );
       if (!deliveredToAnyChannel(results, channels)) {
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [doseId, sendKey]);
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [doseId, sendKey],
+        );
         skipped += 1;
-        log.warn({ doseId, kind, channels, results }, 'Medication reminder delivered to no channel; claim released');
+        log.warn(
+          { doseId, kind, channels, results },
+          "Medication reminder delivered to no channel; claim released",
+        );
         continue;
       }
-      if (kind === 'reminder') reminded += 1;
-      else if (kind === 'snooze') snoozed += 1;
+      if (kind === "reminder") reminded += 1;
+      else if (kind === "snooze") snoozed += 1;
       else escalated += 1;
-      log.info({ doseId, kind, channels, doseTime }, 'Medication reminder dispatched');
+      log.info(
+        { doseId, kind, channels, doseTime },
+        "Medication reminder dispatched",
+      );
     } catch (error) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [doseId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [doseId, sendKey],
+      );
       skipped += 1;
-      log.error({ doseId, err: error }, 'Failed to send medication reminder');
+      log.error({ doseId, err: error }, "Failed to send medication reminder");
     }
   }
 
-  log.info({ candidates: rows.length, reminded, snoozed, escalated, skipped }, 'Medication reminders checked');
+  log.info(
+    { candidates: rows.length, reminded, snoozed, escalated, skipped },
+    "Medication reminders checked",
+  );
   return { candidates: rows.length, reminded, snoozed, escalated, skipped };
 }
 
@@ -1411,7 +1704,8 @@ export async function sendJieqiReminders(
      WHERE jieqi_reminder_list IS NOT NULL`,
   );
 
-  const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
+  const { resolveReminderChannels } =
+    await import("../services/reminder-channel-resolver.service.js");
   let sent = 0;
   let skipped = 0;
   const catchUpMinutes = resolveReminderCatchUpMinutes();
@@ -1427,17 +1721,27 @@ export async function sendJieqiReminders(
       skipped += 1;
       continue;
     }
-    const timeZone = typeof raw.timezone === 'string' && raw.timezone.trim() ? raw.timezone : 'Asia/Shanghai';
+    const timeZone =
+      typeof raw.timezone === "string" && raw.timezone.trim()
+        ? raw.timezone
+        : "Asia/Shanghai";
     const today = getTodayString(now, timeZone);
     const name = jieqiOn(today);
     if (!name || !selected.includes(name)) {
       skipped += 1;
       continue;
     }
-    const rawTime = typeof raw.daily_check_time === 'string' ? raw.daily_check_time.slice(0, 5) : '';
-    const reminderTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime) ? rawTime : '09:00';
+    const rawTime =
+      typeof raw.daily_check_time === "string"
+        ? raw.daily_check_time.slice(0, 5)
+        : "";
+    const reminderTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime)
+      ? rawTime
+      : "09:00";
     const currentTime = getCurrentHHmm(now, timeZone);
-    if (!matchesReminderTimeWindow(currentTime, reminderTime, 2, catchUpMinutes)) {
+    if (
+      !matchesReminderTimeWindow(currentTime, reminderTime, 2, catchUpMinutes)
+    ) {
       skipped += 1;
       continue;
     }
@@ -1460,7 +1764,10 @@ export async function sendJieqiReminders(
 
     const channels = await resolveReminderChannels(userId, [], 0);
     if (channels.length === 0) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [userId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [userId, sendKey],
+      );
       skipped += 1;
       continue;
     }
@@ -1471,9 +1778,9 @@ export async function sendJieqiReminders(
           id: null,
           user_id: userId,
           name: `节气提醒：${name}`,
-          type: 'jieqi_reminder',
+          type: "jieqi_reminder",
           date: today,
-          calendar_type: 'gregorian',
+          calendar_type: "gregorian",
           reminder_time: reminderTime,
           reminder_config: null,
           reminderConfig: null,
@@ -1483,26 +1790,41 @@ export async function sendJieqiReminders(
         channels,
       );
       if (!deliveredToAnyChannel(results, channels)) {
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [userId, sendKey]);
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [userId, sendKey],
+        );
         skipped += 1;
-        log.warn({ userId, name, channels, results }, 'Jieqi reminder delivered to no channel; claim released');
+        log.warn(
+          { userId, name, channels, results },
+          "Jieqi reminder delivered to no channel; claim released",
+        );
         continue;
       }
       sent += 1;
-      log.info({ userId, name, reminderTime, channels }, 'Jieqi reminder dispatched');
+      log.info(
+        { userId, name, reminderTime, channels },
+        "Jieqi reminder dispatched",
+      );
     } catch (error) {
-      await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [userId, sendKey]);
+      await query(
+        "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+        [userId, sendKey],
+      );
       skipped += 1;
-      log.error({ userId, err: error }, 'Failed to send jieqi reminder');
+      log.error({ userId, err: error }, "Failed to send jieqi reminder");
     }
   }
 
-  log.info({ candidates: result.rows.length, sent, skipped }, 'Jieqi reminders checked');
+  log.info(
+    { candidates: result.rows.length, sent, skipped },
+    "Jieqi reminders checked",
+  );
   return { candidates: result.rows.length, sent, skipped };
 }
 
 export async function sendReminders() {
-  log.info('Checking reminders...');
+  log.info("Checking reminders...");
 
   scheduleTimeSync(DEFAULT_SYNC_TIMEZONE);
   const now = getSyncedNow(DEFAULT_SYNC_TIMEZONE);
@@ -1511,7 +1833,7 @@ export async function sendReminders() {
   // Batch load ALL user configs upfront to avoid N+1 queries
   const allUserConfigs = await query(
     `SELECT user_id, timezone, reminders_enabled, daily_check_time, days_before_list, reminder_emails, holiday_reminder_mode, reminder_catchup_minutes
-     FROM user_configs`
+     FROM user_configs`,
   );
   const userConfigMap = new Map<number, any>();
   for (const row of allUserConfigs.rows) {
@@ -1525,10 +1847,13 @@ export async function sendReminders() {
 
   // Pre-populate caches from batch data
   for (const [userId, config] of userConfigMap) {
-    userTimezoneCache.set(userId, config.timezone || 'Asia/Shanghai');
+    userTimezoneCache.set(userId, config.timezone || "Asia/Shanghai");
     userEnabledCache.set(userId, config.reminders_enabled !== false);
     const daysList = config.days_before_list || [1, 3, 7];
-    userReminderSettingsCache.set(userId, Array.isArray(daysList) ? daysList : [1, 3, 7]);
+    userReminderSettingsCache.set(
+      userId,
+      Array.isArray(daysList) ? daysList : [1, 3, 7],
+    );
   }
 
   // Users with events but no user_configs row were previously skipped entirely by cron.
@@ -1536,7 +1861,11 @@ export async function sendReminders() {
   for (const row of eventOwnerRows.rows) {
     const userId = row.user_id as number;
     if (userConfigMap.has(userId)) continue;
-    const defaults = { timezone: 'Asia/Shanghai', reminders_enabled: true, days_before_list: [1, 3, 7] };
+    const defaults = {
+      timezone: "Asia/Shanghai",
+      reminders_enabled: true,
+      days_before_list: [1, 3, 7],
+    };
     userConfigMap.set(userId, defaults);
     userTimezoneCache.set(userId, defaults.timezone);
     userEnabledCache.set(userId, true);
@@ -1546,7 +1875,7 @@ export async function sendReminders() {
   function getUserTimezone(userId: number): string {
     if (userTimezoneCache.has(userId)) return userTimezoneCache.get(userId)!;
     // User not in user_configs table - use defaults
-    return 'Asia/Shanghai';
+    return "Asia/Shanghai";
   }
 
   // v41 家庭档案时区（checkbox 69）：事件归属的档案若配置了时区，优先使用；
@@ -1560,18 +1889,26 @@ export async function sendReminders() {
   }
 
   function getEventTimezone(userId: number, profileId: unknown): string {
-    const pid = profileId == null || profileId === '' ? null : Number(profileId);
-    if (pid !== null && Number.isInteger(pid) && profileTimezoneCache.has(pid)) {
+    const pid =
+      profileId == null || profileId === "" ? null : Number(profileId);
+    if (
+      pid !== null &&
+      Number.isInteger(pid) &&
+      profileTimezoneCache.has(pid)
+    ) {
       return profileTimezoneCache.get(pid)!;
     }
     return getUserTimezone(userId);
   }
-  
-  function getDaysBeforeList(userId: number, eventReminderDaysBefore: any): number[] {
+
+  function getDaysBeforeList(
+    userId: number,
+    eventReminderDaysBefore: any,
+  ): number[] {
     // 优先使用事件级别的 reminder_days_before
     const eventDays = parseReminderDays(eventReminderDaysBefore);
     if (eventDays) return eventDays;
-    
+
     // 回退到用户级别的 days_before_list (already batch-loaded)
     if (userReminderSettingsCache.has(userId)) {
       return userReminderSettingsCache.get(userId)!;
@@ -1628,9 +1965,14 @@ export async function sendReminders() {
       }
     }
 
-    const uncachedUserIds = enabledUserIds.filter((id) => !cachedUserIds.has(id));
+    const uncachedUserIds = enabledUserIds.filter(
+      (id) => !cachedUserIds.has(id),
+    );
     if (uncachedUserIds.length > 0) {
-      const fallback = await query('SELECT * FROM events WHERE user_id = ANY($1::int[])', [uncachedUserIds]);
+      const fallback = await query(
+        "SELECT * FROM events WHERE user_id = ANY($1::int[])",
+        [uncachedUserIds],
+      );
       for (const ev of fallback.rows) {
         if (!eventIdSet.has(ev.id)) {
           eventIdSet.add(ev.id);
@@ -1638,7 +1980,9 @@ export async function sendReminders() {
         }
       }
       for (const userId of uncachedUserIds) {
-        refreshUserEventCache(userId).catch((e) => log.warn({ userId, err: e }, 'Cache refresh failed'));
+        refreshUserEventCache(userId).catch((e) =>
+          log.warn({ userId, err: e }, "Cache refresh failed"),
+        );
       }
     }
 
@@ -1655,7 +1999,7 @@ export async function sendReminders() {
       }
     }
   }
-  
+
   // 筛选需要提醒的事件
   const eventsToRemind: Array<{
     id: number;
@@ -1681,7 +2025,7 @@ export async function sendReminders() {
     /** checkbox 166: 迟到命中（补发）的迟到分钟数；准时命中时为 undefined。 */
     lateMinutes?: number;
   }> = [];
-  
+
   for (const event of allEventRows) {
     // Check if user has reminders enabled (batch-loaded, default to true)
     if (!userEnabledCache.has(event.user_id)) {
@@ -1714,8 +2058,8 @@ export async function sendReminders() {
     //  - none    -> the deadline is absent or already past the window -> the normal
     //               day-based schedule below resumes untouched.
     const snooze = evaluateSnoozeWindow(event.snoozed_until, now.getTime());
-    if (snooze.state === 'pending') continue;
-    if (snooze.state === 'due' && snooze.atMs !== undefined) {
+    if (snooze.state === "pending") continue;
+    if (snooze.state === "due" && snooze.atMs !== undefined) {
       eventsToRemind.push({
         ...event,
         targetDate: new Date(snooze.atMs),
@@ -1726,28 +2070,38 @@ export async function sendReminders() {
       continue;
     }
 
-    if (reminderConfig?.daysBeforeList && reminderConfig.daysBeforeList.length > 0) {
+    if (
+      reminderConfig?.daysBeforeList &&
+      reminderConfig.daysBeforeList.length > 0
+    ) {
       daysBeforeList = reminderConfig.daysBeforeList;
     }
-    
+
     // 回退到 reminder_days_before 字段
     if (daysBeforeList.length === 0) {
-      daysBeforeList = getDaysBeforeList(event.user_id, event.reminder_days_before);
+      daysBeforeList = getDaysBeforeList(
+        event.user_id,
+        event.reminder_days_before,
+      );
     }
-    
+
     // 包含 0 表示当天也提醒
-    const allDays = daysBeforeList.includes(0) ? daysBeforeList : [0, ...daysBeforeList];
+    const allDays = daysBeforeList.includes(0)
+      ? daysBeforeList
+      : [0, ...daysBeforeList];
 
     // v2.26 F：生日默认加「3 天后」一条准备提醒（提醒正文自然带"3 天后"字样）。
     // 用户已配置 d3 时不重复注入；其它事件类型不注入。
-    if (event.type === 'birthday' && !allDays.includes(3)) {
+    if (event.type === "birthday" && !allDays.includes(3)) {
       allDays.push(3);
     }
 
     // checkbox 78：节假日感知调度。`keep`（默认）保留原定日并在正文附节假日名；
     // `suppress` 在法定假日抑制；`shift` 顺延到节后第一个工作日。FAIL-OPEN：日历
     // 未覆盖（如 2031）时 resolveHolidayEvalDays 返回 [today]，提醒绝不丢失。
-    const holidayMode = resolveHolidayMode(userConfigMap.get(event.user_id)?.holiday_reminder_mode);
+    const holidayMode = resolveHolidayMode(
+      userConfigMap.get(event.user_id)?.holiday_reminder_mode,
+    );
     const evalDays = resolveHolidayEvalDays(today, holidayMode);
     if (evalDays.length === 0) continue;
 
@@ -1757,84 +2111,119 @@ export async function sendReminders() {
       let matchedDaysUntil: number | null = null;
 
       try {
-        if (calendarType === 'gregorian' || calendarType === 'both') {
+        if (calendarType === "gregorian" || calendarType === "both") {
           const gTarget = resolveGregorianTarget(evalDay, event, allDays);
           if (gTarget) {
             eventTargetDate = gTarget.targetDate;
             matchedDaysUntil = gTarget.daysUntil;
           }
         }
-        if ((calendarType === 'lunar' || calendarType === 'both') && event.lunar_date) {
-          const lTarget = resolveLunarTarget(evalDay, event.lunar_date, allDays, now);
+        if (
+          (calendarType === "lunar" || calendarType === "both") &&
+          event.lunar_date
+        ) {
+          const lTarget = resolveLunarTarget(
+            evalDay,
+            event.lunar_date,
+            allDays,
+            now,
+          );
           if (lTarget) {
             eventTargetDate = lTarget;
             if (matchedDaysUntil === null) {
               try {
-                const lunarData = typeof event.lunar_date === 'string' ? JSON.parse(event.lunar_date) : event.lunar_date;
-                const month = lunarData.isLeap ? -lunarData.month : lunarData.month;
+                const lunarData =
+                  typeof event.lunar_date === "string"
+                    ? JSON.parse(event.lunar_date)
+                    : event.lunar_date;
+                const month = lunarData.isLeap
+                  ? -lunarData.month
+                  : lunarData.month;
                 for (const year of [now.getFullYear(), now.getFullYear() + 1]) {
-                  const tryLunarDate = Lunar.fromYmd(year, month, lunarData.day);
+                  const tryLunarDate = Lunar.fromYmd(
+                    year,
+                    month,
+                    lunarData.day,
+                  );
                   const trySolar = tryLunarDate.getSolar();
-                  const tryDateStr = `${trySolar.getYear()}-${String(trySolar.getMonth()).padStart(2, '0')}-${String(trySolar.getDay()).padStart(2, '0')}`;
+                  const tryDateStr = `${trySolar.getYear()}-${String(trySolar.getMonth()).padStart(2, "0")}-${String(trySolar.getDay()).padStart(2, "0")}`;
                   const diff = diffCalendarDays(evalDay, tryDateStr);
                   if (diff >= 0 && allDays.includes(diff)) {
                     matchedDaysUntil = diff;
                     break;
                   }
                 }
-              } catch { /* ignore */ }
+              } catch {
+                /* ignore */
+              }
             }
           }
         }
       } catch (error) {
-        log.error({ eventId: event.id, err: error }, 'Failed to parse lunar date');
-        await recordEventTrigger(event.id, event.user_id, 'scheduled', evalDay, 'failed', `Lunar date conversion failed: ${String(error)}`);
+        log.error(
+          { eventId: event.id, err: error },
+          "Failed to parse lunar date",
+        );
+        await recordEventTrigger(
+          event.id,
+          event.user_id,
+          "scheduled",
+          evalDay,
+          "failed",
+          `Lunar date conversion failed: ${String(error)}`,
+        );
       }
 
       if (!eventTargetDate) continue;
 
       // Check if current time matches any of the event's reminder times
-      const currentHour = new Intl.DateTimeFormat('en-US', {
+      const currentHour = new Intl.DateTimeFormat("en-US", {
         timeZone,
-        hour: '2-digit',
-        hour12: false
+        hour: "2-digit",
+        hour12: false,
       }).format(now);
-      const currentMinute = new Intl.DateTimeFormat('en-US', {
+      const currentMinute = new Intl.DateTimeFormat("en-US", {
         timeZone,
-        minute: '2-digit',
-        hour12: false
+        minute: "2-digit",
+        hour12: false,
       }).format(now);
-      const currentTime = `${currentHour.padStart(2, '0')}:${currentMinute.padStart(2, '0')}`;
-      
+      const currentTime = `${currentHour.padStart(2, "0")}:${currentMinute.padStart(2, "0")}`;
+
       let reminderTimes = reminderConfig?.reminderTimes?.length
         ? reminderConfig.reminderTimes
         : [];
-      
+
       // Fallback to legacy reminder_time field
       if (reminderTimes.length === 0) {
-        const eventReminderTime = event.reminder_time || '09:00';
+        const eventReminderTime = event.reminder_time || "09:00";
         reminderTimes = [eventReminderTime];
       }
-      
-      
+
       // Debug logging
-      const nextOccurrence = resolveNextGregorianOccurrence(event.date, evalDay, {
-        eventType: event.type,
-        recurringConfig: parseJsonField(event.recurring_config),
-        nextOccurrence: event.next_occurrence,
-      });
-      log.debug({
-        eventId: event.id,
-        name: event.name,
-        date: event.date,
-        nextOccurrence,
-        today: evalDay,
-        diff: diffCalendarDays(evalDay, nextOccurrence),
-        allDays,
-        reminderTimes,
-        currentTime,
-      }, 'Event check');
-      
+      const nextOccurrence = resolveNextGregorianOccurrence(
+        event.date,
+        evalDay,
+        {
+          eventType: event.type,
+          recurringConfig: parseJsonField(event.recurring_config),
+          nextOccurrence: event.next_occurrence,
+        },
+      );
+      log.debug(
+        {
+          eventId: event.id,
+          name: event.name,
+          date: event.date,
+          nextOccurrence,
+          today: evalDay,
+          diff: diffCalendarDays(evalDay, nextOccurrence),
+          allDays,
+          reminderTimes,
+          currentTime,
+        },
+        "Event check",
+      );
+
       let matchedReminderTime: string | null = null;
       let matchedLateMinutes: number | null = null;
       const userCatchUp = resolveUserCatchUpMinutes(
@@ -1842,14 +2231,19 @@ export async function sendReminders() {
         catchUpMinutes,
       );
       const shouldRemind = reminderTimes.some((time) => {
-        const match = matchesReminderTimeWindow(currentTime, time, 2, userCatchUp);
+        const match = matchesReminderTimeWindow(
+          currentTime,
+          time,
+          2,
+          userCatchUp,
+        );
         if (match) {
           matchedReminderTime = time;
           matchedLateMinutes = catchUpLateMinutes(currentTime, time);
         }
         return match;
       });
-      
+
       // 时间窗口与候选日无关；不匹配则尝试下一个候选日
       if (!shouldRemind || !matchedReminderTime) {
         continue;
@@ -1860,32 +2254,50 @@ export async function sendReminders() {
         daysUntil: matchedDaysUntil ?? 0,
         matchedReminderTime,
         holidayLabel: holidayContextLabel(evalDay, today),
-        ...(matchedLateMinutes !== null ? { lateMinutes: matchedLateMinutes } : {}),
+        ...(matchedLateMinutes !== null
+          ? { lateMinutes: matchedLateMinutes }
+          : {}),
       });
       break;
     }
   }
-  
-  log.info({ count: eventsToRemind.length }, 'Events to remind');
+
+  log.info({ count: eventsToRemind.length }, "Events to remind");
 
   // checkbox 168：生日祝福（发给联系人）与机主提醒彻底解耦。这里只解析、不发送：
   // 解析结果用于 (1) 给机主提醒附一句显式提示（联系人无邮箱/已删除），(2) 稍后投递祝福。
   // 解析内部绝不抛出（查询失败 → skip/lookup_failed），机主提醒路径不可能被它影响。
   const birthdayGreetings = new Map<number, BirthdayGreetingResolution>();
   for (const event of eventsToRemind.slice(0, 50)) {
-    if (event.type !== 'birthday' || (event.daysUntil ?? 0) !== 0) continue;
+    if (event.type !== "birthday" || (event.daysUntil ?? 0) !== 0) continue;
     try {
-      birthdayGreetings.set(event.id, await resolveBirthdayGreeting(event as unknown as BirthdayGreetingEvent));
+      birthdayGreetings.set(
+        event.id,
+        await resolveBirthdayGreeting(
+          event as unknown as BirthdayGreetingEvent,
+        ),
+      );
     } catch (error) {
-      log.warn({ eventId: event.id, err: error }, 'Birthday greeting resolution failed');
+      log.warn(
+        { eventId: event.id, err: error },
+        "Birthday greeting resolution failed",
+      );
     }
   }
 
   for (const event of eventsToRemind.slice(0, 50)) {
     const rawChannels = event.notification_channels;
-    const baseChannels = typeof rawChannels === 'string' ? JSON.parse(rawChannels) : (rawChannels || []);
-    const { resolveReminderChannels } = await import('../services/reminder-channel-resolver.service.js');
-    const channels = await resolveReminderChannels(event.user_id, baseChannels, event.daysUntil ?? 0);
+    const baseChannels =
+      typeof rawChannels === "string"
+        ? JSON.parse(rawChannels)
+        : rawChannels || [];
+    const { resolveReminderChannels } =
+      await import("../services/reminder-channel-resolver.service.js");
+    const channels = await resolveReminderChannels(
+      event.user_id,
+      baseChannels,
+      event.daysUntil ?? 0,
+    );
     if (channels.length > 0) {
       const timeZone = getEventTimezone(event.user_id, event.profile_id);
       const today = getTodayString(now, timeZone);
@@ -1893,8 +2305,13 @@ export async function sendReminders() {
       // A snooze fire carries its own `snooze:event#…` key; everything else keeps the
       // canonical `YYYY-MM-DD#d<n>#tHH:mm` key. Both go through the SAME
       // reminder_send_claims INSERT / event_trigger_logs check below.
-      const sendKey = event.snoozeSendKey
-        ?? buildReminderSendKey(today, event.daysUntil ?? 0, event.matchedReminderTime);
+      const sendKey =
+        event.snoozeSendKey ??
+        buildReminderSendKey(
+          today,
+          event.daysUntil ?? 0,
+          event.matchedReminderTime,
+        );
 
       const claim = await query(
         `INSERT INTO reminder_send_claims (event_id, trigger_date) VALUES ($1, $2)
@@ -1902,7 +2319,10 @@ export async function sendReminders() {
         [event.id, sendKey],
       );
       if (claim.rows.length === 0) {
-        log.debug({ eventId: event.id, sendKey }, 'Reminder already claimed by another worker');
+        log.debug(
+          { eventId: event.id, sendKey },
+          "Reminder already claimed by another worker",
+        );
         continue;
       }
 
@@ -1913,31 +2333,48 @@ export async function sendReminders() {
         [event.id, sendKey],
       );
       if (alreadySent.rows.length > 0) {
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [event.id, sendKey]);
-        log.debug({ eventId: event.id, sendKey }, 'Already sent for this slot, skipping');
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [event.id, sendKey],
+        );
+        log.debug(
+          { eventId: event.id, sendKey },
+          "Already sent for this slot, skipping",
+        );
         continue;
       }
       // checkbox 166：补发可观测（迟到命中超过 ±2 分钟准时窗口；已成功/已申领的槽位在上方直接跳过）。
       if (event.lateMinutes !== undefined) {
         logReminderCatchUp(
-          { eventId: event.id, sendKey, matchedReminderTime: event.matchedReminderTime, daysUntil: event.daysUntil },
+          {
+            eventId: event.id,
+            sendKey,
+            matchedReminderTime: event.matchedReminderTime,
+            daysUntil: event.daysUntil,
+          },
           event.lateMinutes,
         );
       }
       try {
         // Relationship mapping is handled inside sendNotifications() per-recipient
         const greeting = birthdayGreetings.get(event.id);
-        const ownerHint = greeting?.action === 'skip' ? greeting.hint : undefined;
-        const channelResults = await sendNotifications(event, event.user_id, channels, {
-          // 档案级通知路由（checkbox 70）：有路由行时只发该档案的账户，否则全部启用账户
-          profileId: event.profile_id,
-          // checkbox 78: 仅在节假日/顺延场景附加正文文案（非节假日时与旧行为逐字节一致）
-          ...(event.holidayLabel ? { holidayLabel: event.holidayLabel } : {}),
-          // checkbox 168：联系人无邮箱/已删除时，机主提醒照常发送，只附一句提示
-          ...(ownerHint ? { ownerHint } : {}),
-        });
-        log.info({ eventId: event.id, channelResults }, 'Sent notifications');
-        
+        const ownerHint =
+          greeting?.action === "skip" ? greeting.hint : undefined;
+        const channelResults = await sendNotifications(
+          event,
+          event.user_id,
+          channels,
+          {
+            // 档案级通知路由（checkbox 70）：有路由行时只发该档案的账户，否则全部启用账户
+            profileId: event.profile_id,
+            // checkbox 78: 仅在节假日/顺延场景附加正文文案（非节假日时与旧行为逐字节一致）
+            ...(event.holidayLabel ? { holidayLabel: event.holidayLabel } : {}),
+            // checkbox 168：联系人无邮箱/已删除时，机主提醒照常发送，只附一句提示
+            ...(ownerHint ? { ownerHint } : {}),
+          },
+        );
+        log.info({ eventId: event.id, channelResults }, "Sent notifications");
+
         // 投递结果只看真实渠道：_quiet_hours / _skipped 是内部标记，不是渠道。
         // 旧代码把它们算进失败，于是安静时段会写下 error_message="_quiet_hours: quiet_hours"，
         // error_details.channel_type 也变成这个不存在的渠道。
@@ -1945,44 +2382,96 @@ export async function sendReminders() {
         // status 仍然只取 success/failed（去重、连续失败计数、清理都按它工作，不新增取值）。
         // 部分失败记 success：已送达的渠道不能因为另一个渠道失败而被重复投递；真实状态由
         // channel_results 推导，前端展示与重试接口共用 readDelivery。
-        const status = delivery.outcome === 'delivered' || delivery.outcome === 'partial' ? 'success' : 'failed';
+        const status =
+          delivery.outcome === "delivered" || delivery.outcome === "partial"
+            ? "success"
+            : "failed";
         const errorMessage = delivery.reason;
 
         // 只记真实失败渠道（readDelivery 已剔除标记键）
-        const results = channelResults as Record<string, { success?: boolean; error?: string; accountId?: number }>;
+        const results = channelResults as Record<
+          string,
+          { success?: boolean; error?: string; accountId?: number }
+        >;
         const failedEntries = delivery.failed
           .map((channel) => [channel, results[channel]] as const)
-          .filter((entry): entry is readonly [string, { error?: string; accountId?: number }] => !!entry[1]);
-        const errorDetails = failedEntries.length > 0 ? {
-          channel_type: failedEntries.map(([ch]) => ch).join(','),
-          account_id: failedEntries[0][1].accountId,
-          details: failedEntries.map(([ch, r]) => ({ channel: ch, error: r.error, accountId: r.accountId }))
-        } : undefined;
-        
+          .filter(
+            (
+              entry,
+            ): entry is readonly [
+              string,
+              { error?: string; accountId?: number },
+            ] => !!entry[1],
+          );
+        const errorDetails =
+          failedEntries.length > 0
+            ? {
+                channel_type: failedEntries.map(([ch]) => ch).join(","),
+                account_id: failedEntries[0][1].accountId,
+                details: failedEntries.map(([ch, r]) => ({
+                  channel: ch,
+                  error: r.error,
+                  accountId: r.accountId,
+                })),
+              }
+            : undefined;
+
         // 记录事件触发日志 - use timezone-aware today string for dedup consistency
-        const triggerRecorded = await recordEventTrigger(event.id, event.user_id, 'scheduled', sendKey, status, errorMessage, JSON.stringify(channelResults), errorDetails);
+        const triggerRecorded = await recordEventTrigger(
+          event.id,
+          event.user_id,
+          "scheduled",
+          sendKey,
+          status,
+          errorMessage,
+          JSON.stringify(channelResults),
+          errorDetails,
+        );
         if (!triggerRecorded) {
           // The write failure is NOT swallowed. A persisted 'failed' row is the only signal
           // the consecutive-failure counter (trackConsecutiveFailure) can count, so name the
           // consequence explicitly instead of letting auto-disable go blind.
           log.error(
-            { eventId: event.id, sendKey, accountId: errorDetails?.account_id ?? null, status },
-            status === 'failed'
-              ? 'Trigger log write failed: consecutive-failure counter will NOT observe this failed send (auto-disable stays blind)'
-              : 'Trigger log write failed: send result not recorded in 提醒日志',
+            {
+              eventId: event.id,
+              sendKey,
+              accountId: errorDetails?.account_id ?? null,
+              status,
+            },
+            status === "failed"
+              ? "Trigger log write failed: consecutive-failure counter will NOT observe this failed send (auto-disable stays blind)"
+              : "Trigger log write failed: send result not recorded in 提醒日志",
           );
         }
-        if (status === 'success') {
-          refreshUserEventCache(event.user_id).catch((e) => log.warn({ userId: event.user_id, err: e }, 'Post-send cache refresh failed'));
+        if (status === "success") {
+          refreshUserEventCache(event.user_id).catch((e) =>
+            log.warn(
+              { userId: event.user_id, err: e },
+              "Post-send cache refresh failed",
+            ),
+          );
         }
       } catch (error) {
-        log.error({ eventId: event.id, err: error }, 'Failed to send notifications');
-        await query('DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2', [event.id, sendKey]);
-        const retryRecorded = await recordEventTrigger(event.id, event.user_id, 'scheduled', sendKey, 'failed', String(error));
+        log.error(
+          { eventId: event.id, err: error },
+          "Failed to send notifications",
+        );
+        await query(
+          "DELETE FROM reminder_send_claims WHERE event_id = $1 AND trigger_date = $2",
+          [event.id, sendKey],
+        );
+        const retryRecorded = await recordEventTrigger(
+          event.id,
+          event.user_id,
+          "scheduled",
+          sendKey,
+          "failed",
+          String(error),
+        );
         if (!retryRecorded) {
           log.error(
             { eventId: event.id, sendKey },
-            'Trigger log write failed: consecutive-failure counter will NOT observe this failed send (auto-disable stays blind)',
+            "Trigger log write failed: consecutive-failure counter will NOT observe this failed send (auto-disable stays blind)",
           );
         }
       }
@@ -1993,8 +2482,13 @@ export async function sendReminders() {
       // 重复 tick 只写一行、只打一条日志。
       const timeZone = getEventTimezone(event.user_id, event.profile_id);
       const today = getTodayString(now, timeZone);
-      const skipKey = event.snoozeSendKey
-        ?? buildReminderSendKey(today, event.daysUntil ?? 0, event.matchedReminderTime);
+      const skipKey =
+        event.snoozeSendKey ??
+        buildReminderSendKey(
+          today,
+          event.daysUntil ?? 0,
+          event.matchedReminderTime,
+        );
       await recordSkippedTrigger(event.id, event.id, event.user_id, skipKey);
     }
   }
@@ -2007,13 +2501,24 @@ export async function sendReminders() {
   for (const event of eventsToRemind.slice(0, 50)) {
     const greeting = birthdayGreetings.get(event.id);
     if (!greeting) continue;
-    const year = getTodayString(now, getEventTimezone(event.user_id, event.profile_id)).slice(0, 4);
+    const year = getTodayString(
+      now,
+      getEventTimezone(event.user_id, event.profile_id),
+    ).slice(0, 4);
     const aiEnabledOverride = greetingAiBudget > 0;
     try {
-      const result = await deliverBirthdayGreeting(event as unknown as BirthdayGreetingEvent, greeting, year, { aiEnabledOverride });
-      if (result === 'sent' || result === 'draft') greetingAiBudget -= 1;
+      const result = await deliverBirthdayGreeting(
+        event as unknown as BirthdayGreetingEvent,
+        greeting,
+        year,
+        { aiEnabledOverride },
+      );
+      if (result === "sent" || result === "draft") greetingAiBudget -= 1;
     } catch (error) {
-      log.warn({ eventId: event.id, err: error }, 'Birthday greeting delivery failed');
+      log.warn(
+        { eventId: event.id, err: error },
+        "Birthday greeting delivery failed",
+      );
     }
   }
 
@@ -2021,93 +2526,98 @@ export async function sendReminders() {
   try {
     await sendExpiryReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Expiry reminder evaluation failed');
+    log.error({ err: error }, "Expiry reminder evaluation failed");
   }
 
   // 库存（D12，todo 49）：同一引擎、同一分钟级调度（仅 expires_at 非空的行）
   try {
     await sendInventoryReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Inventory reminder evaluation failed');
+    log.error({ err: error }, "Inventory reminder evaluation failed");
   }
 
   // 保养（D12，todo 50）：日期间隔走同一引擎；用量间隔在 10% 阈值内写收件箱提醒
   try {
     await sendMaintenanceReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Maintenance reminder evaluation failed');
+    log.error({ err: error }, "Maintenance reminder evaluation failed");
   }
   try {
     await sendMaintenanceUsageNudges();
   } catch (error) {
-    log.error({ err: error }, 'Maintenance usage nudge evaluation failed');
+    log.error({ err: error }, "Maintenance usage nudge evaluation failed");
   }
 
   // 证件（D2，todo 55）：同一引擎、同一分钟级调度（仅 expires_at 非空的行）
   try {
     await sendDocumentReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Document reminder evaluation failed');
+    log.error({ err: error }, "Document reminder evaluation failed");
   }
 
   // 个人 CRM 联系节奏（D4，checkbox 62）：每周期至多一条；从未联系的人跳过
   try {
     await sendCadenceReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Cadence reminder evaluation failed');
+    log.error({ err: error }, "Cadence reminder evaluation failed");
   }
 
   // 习惯打卡（D6，checkbox 64/65）：reminder_times + schedule_days + 连胜告急
   try {
     await sendHabitReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Habit reminder evaluation failed');
+    log.error({ err: error }, "Habit reminder evaluation failed");
   }
 
   // 节气提醒（D10，checkbox 78）：用户选定的节气当天发一条（默认关闭）
   try {
     await sendJieqiReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Jieqi reminder evaluation failed');
+    log.error({ err: error }, "Jieqi reminder evaluation failed");
   }
 
   // 家庭用药（D3，checkbox 73）：按剂量 scheduled_for 的定时 / 稍后 / 升级提醒
   try {
     await sendMedicationReminders(now);
-  await sendWatchlistReminders(now);
+    await sendWatchlistReminders(now);
   } catch (error) {
-    log.error({ err: error }, 'Medication reminder evaluation failed');
+    log.error({ err: error }, "Medication reminder evaluation failed");
   }
 }
 
 export async function githubBackup() {
-  log.info('Backing up email logs...');
-  const result = await query('SELECT COUNT(*) as count FROM email_logs');
-  log.info({ count: result.rows[0].count }, 'Backed up email logs');
+  log.info("Backing up email logs...");
+  const result = await query("SELECT COUNT(*) as count FROM email_logs");
+  log.info({ count: result.rows[0].count }, "Backed up email logs");
 }
 
 export async function archiveLoginHistory() {
-  log.info('Archiving login history...');
-  const result = await query('SELECT COUNT(*) as count FROM login_attempts');
-  log.info({ count: result.rows[0].count }, 'Archived login attempts');
+  log.info("Archiving login history...");
+  const result = await query("SELECT COUNT(*) as count FROM login_attempts");
+  log.info({ count: result.rows[0].count }, "Archived login attempts");
 }
 
 export async function cleanupSessions() {
-  log.info('Cleaning up expired sessions...');
+  log.info("Cleaning up expired sessions...");
   const result = await query("DELETE FROM sessions WHERE expires_at < NOW()");
-  log.info({ count: result.rowCount ?? 0 }, 'Cleaned up expired sessions');
-  
+  log.info({ count: result.rowCount ?? 0 }, "Cleaned up expired sessions");
+
   // 清理30天前的登录日志
   const loginLogsResult = await query(
-    "DELETE FROM login_logs WHERE login_time < NOW() - INTERVAL '30 days'"
+    "DELETE FROM login_logs WHERE login_time < NOW() - INTERVAL '30 days'",
   );
-  log.info({ count: loginLogsResult.rowCount ?? 0 }, 'Cleaned up old login logs');
-  
+  log.info(
+    { count: loginLogsResult.rowCount ?? 0 },
+    "Cleaned up old login logs",
+  );
+
   // 清理90天前的事件触发日志（v2.26：与 retention.service 统一 90 天；
   // 重要内容已由月度 digest 归档进 digest_archive，原行到期即清）
   const triggerResult = await query(
-    "DELETE FROM event_trigger_logs WHERE created_at < NOW() - INTERVAL '90 days'"
+    "DELETE FROM event_trigger_logs WHERE created_at < NOW() - INTERVAL '90 days'",
   );
-  log.info({ count: triggerResult.rowCount ?? 0 }, 'Cleaned up old event trigger logs');
+  log.info(
+    { count: triggerResult.rowCount ?? 0 },
+    "Cleaned up old event trigger logs",
+  );
 }
-

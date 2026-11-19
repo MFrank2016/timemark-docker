@@ -248,10 +248,10 @@ async function upsertFeedbackPattern(
   // by 0.1 up to 0.95 so the miner's confidence rises from real feedback.
   await query(
     `INSERT INTO user_patterns (user_id, kind, key, value, confidence, evidence_count, computed_at)
-     VALUES ($1, $2, $3, $4::jsonb, 0.5, 1, CURRENT_TIMESTAMP)
+     VALUES ($1, $2, $3, $4, 0.5, 1, CURRENT_TIMESTAMP)
      ON CONFLICT (user_id, kind, key) DO UPDATE SET
        value = EXCLUDED.value,
-       confidence = LEAST(0.95, user_patterns.confidence + 0.1),
+       confidence = min(0.95, user_patterns.confidence + 0.1),
        evidence_count = user_patterns.evidence_count + 1,
        computed_at = CURRENT_TIMESTAMP`,
     [userId, FEEDBACK_PATTERN_KIND, subject, value],
@@ -394,12 +394,15 @@ export async function buildPolicyDigest(
   if (maxItems === 0 || maxChars === 0) return '';
 
   const result = await query(
-    `SELECT DISTINCT ON (subject)
-       subject, action, rationale, created_at, detail
-     FROM agent_feedback
-     WHERE user_id = $1
-       AND created_at >= now() - make_interval(days => $2::int)
-     ORDER BY subject, created_at DESC, id DESC`,
+    // SQLite 不支持 DISTINCT ON（PG 专有）：用窗口函数取每个 subject 的最新一行。
+    `SELECT subject, action, rationale, created_at, detail FROM (
+       SELECT subject, action, rationale, created_at, detail,
+              ROW_NUMBER() OVER (PARTITION BY subject ORDER BY created_at DESC, id DESC) AS rn
+       FROM agent_feedback
+       WHERE user_id = $1
+         AND created_at >= datetime('now', '-' || $2 || ' days')
+     ) WHERE rn = 1
+     ORDER BY subject`,
     [userId, windowDays],
   );
 

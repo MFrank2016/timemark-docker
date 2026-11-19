@@ -224,7 +224,7 @@ export async function setProfileAccountIds(
   if (unique.length > 0) {
     await query(
       `INSERT INTO profile_channel_accounts (profile_id, account_id)
-       SELECT $1, unnest($2::int[])
+       SELECT $1, value FROM json_each($2) WHERE true
        ON CONFLICT (profile_id, account_id) DO NOTHING`,
       [profileId, unique],
     );

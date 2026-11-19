@@ -283,9 +283,9 @@ registerDecisionResolver('accept_tag', async ({ userId, payload }) => {
   const result = await query(
     `UPDATE events
      SET tags = CASE
-       WHEN COALESCE(tags, '[]'::jsonb) @> jsonb_build_array($3::text)
-         THEN COALESCE(tags, '[]'::jsonb)
-       ELSE COALESCE(tags, '[]'::jsonb) || jsonb_build_array($3::text)
+       WHEN EXISTS (SELECT 1 FROM json_each(COALESCE(tags, '[]')) WHERE value = $3)
+         THEN COALESCE(tags, '[]')
+       ELSE json_insert(COALESCE(tags, '[]'), '$[#]', $3)
      END
      WHERE id = $2 AND user_id = $1
      RETURNING id`,
@@ -327,7 +327,7 @@ export async function countQuestionCardsToday(
     `SELECT COUNT(*)::int AS count
      FROM agent_decision_cards
      WHERE user_id = $1 AND is_question = TRUE
-       AND (created_at AT TIME ZONE $2)::date = $3::date`,
+       AND date(created_at) = $3`,
     [userId, timezone, day],
   );
   const count = Number((result.rows[0] as Record<string, unknown> | undefined)?.count);

@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from 'crypto';
-import { query } from '../../db/index.js';
+import { createHash, randomBytes } from "crypto";
+import { query } from "../../db/index.js";
 
 /**
  * Checkbox 94: chat <-> user/profile linking with an audit trail.
@@ -18,7 +18,7 @@ import { query } from '../../db/index.js';
  * Argument VALUES - link codes, tokens, titles - are never part of `args_redacted`.
  */
 
-export const BOT_PLATFORMS = ['telegram'] as const;
+export const BOT_PLATFORMS = ["telegram"] as const;
 export type BotPlatform = (typeof BOT_PLATFORMS)[number];
 
 /** Raw link codes are 22 base64url chars; these bounds reject obvious garbage before hashing. */
@@ -35,12 +35,12 @@ const LINK_CODE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 /** SHA-256 hash - the only representation of a link code that is ever stored. */
 export function hashLinkCode(code: string): string {
-  return createHash('sha256').update(code).digest('hex');
+  return createHash("sha256").update(code).digest("hex");
 }
 
 /** 128-bit URL-safe code; the raw value is returned once and never persisted. */
 export function generateLinkCode(): { code: string; codeHash: string } {
-  const code = randomBytes(16).toString('base64url');
+  const code = randomBytes(16).toString("base64url");
   return { code, codeHash: hashLinkCode(code) };
 }
 
@@ -52,7 +52,7 @@ export function generateLinkCode(): { code: string; codeHash: string } {
  */
 export function isValidLinkCodeShape(code: unknown): code is string {
   return (
-    typeof code === 'string' &&
+    typeof code === "string" &&
     code.length >= MIN_LINK_CODE_LENGTH &&
     code.length <= MAX_LINK_CODE_LENGTH &&
     LINK_CODE_PATTERN.test(code)
@@ -65,7 +65,10 @@ export interface CreatedBotLinkCode {
 }
 
 /** Generate a single-use code for the authenticated user. The raw code is returned ONCE. */
-export async function createBotLinkCode(userId: number, now: Date = new Date()): Promise<CreatedBotLinkCode> {
+export async function createBotLinkCode(
+  userId: number,
+  now: Date = new Date(),
+): Promise<CreatedBotLinkCode> {
   const { code, codeHash } = generateLinkCode();
   const expiresAt = new Date(now.getTime() + LINK_CODE_TTL_MS);
   await query(
@@ -101,7 +104,8 @@ function toLink(row: BotLinkRow): ActiveBotLink {
     platform: String(row.platform),
     chatId: String(row.chat_id),
     chatType: row.chat_type == null ? null : String(row.chat_type),
-    activeProfileId: row.active_profile_id == null ? null : Number(row.active_profile_id),
+    activeProfileId:
+      row.active_profile_id == null ? null : Number(row.active_profile_id),
   };
 }
 
@@ -120,7 +124,9 @@ export interface UpsertBotLinkInput {
  * A previously revoked chat is resurrected by clearing `revoked_at`, and the stored
  * `active_profile_id` is intentionally preserved across re-links.
  */
-export async function upsertBotLink(input: UpsertBotLinkInput): Promise<ActiveBotLink> {
+export async function upsertBotLink(
+  input: UpsertBotLinkInput,
+): Promise<ActiveBotLink> {
   const result = await query(
     `INSERT INTO bot_links (user_id, platform, chat_id, chat_type, linked_at, last_seen_at, revoked_at)
      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)
@@ -136,7 +142,7 @@ export async function upsertBotLink(input: UpsertBotLinkInput): Promise<ActiveBo
   return toLink(result.rows[0] as BotLinkRow);
 }
 
-export type BotLinkCodeStatus = 'linked' | 'used' | 'expired' | 'invalid';
+export type BotLinkCodeStatus = "linked" | "used" | "expired" | "invalid";
 
 export interface BotLinkCodeConsumeResult {
   status: BotLinkCodeStatus;
@@ -161,10 +167,16 @@ export interface ConsumeBotLinkCodeInput {
  *  - `expired` - the code existed but its TTL passed
  *  - `invalid` - malformed / unknown code (or malformed chat id)
  */
-export async function consumeBotLinkCode(input: ConsumeBotLinkCodeInput): Promise<BotLinkCodeConsumeResult> {
-  if (!isValidLinkCodeShape(input.code)) return { status: 'invalid' };
-  if (typeof input.chatId !== 'string' || !input.chatId || input.chatId.length > MAX_CHAT_ID_LENGTH) {
-    return { status: 'invalid' };
+export async function consumeBotLinkCode(
+  input: ConsumeBotLinkCodeInput,
+): Promise<BotLinkCodeConsumeResult> {
+  if (!isValidLinkCodeShape(input.code)) return { status: "invalid" };
+  if (
+    typeof input.chatId !== "string" ||
+    !input.chatId ||
+    input.chatId.length > MAX_CHAT_ID_LENGTH
+  ) {
+    return { status: "invalid" };
   }
 
   const codeHash = hashLinkCode(input.code);
@@ -182,14 +194,15 @@ export async function consumeBotLinkCode(input: ConsumeBotLinkCodeInput): Promis
       `SELECT used_at, expires_at FROM bot_link_codes WHERE code_hash = $1`,
       [codeHash],
     );
-    const row = existing.rows[0] as { used_at: unknown; expires_at: unknown } | undefined;
-    if (!row) return { status: 'invalid' };
-    if (row.used_at != null) return { status: 'used' };
-    return { status: 'expired' };
+    const row = existing.rows[0] as
+      { used_at: unknown; expires_at: unknown } | undefined;
+    if (!row) return { status: "invalid" };
+    if (row.used_at != null) return { status: "used" };
+    return { status: "expired" };
   }
 
   const userId = Number(claimedRow.user_id);
-  if (!Number.isInteger(userId) || userId <= 0) return { status: 'invalid' };
+  if (!Number.isInteger(userId) || userId <= 0) return { status: "invalid" };
 
   const link = await upsertBotLink({
     userId,
@@ -197,12 +210,21 @@ export async function consumeBotLinkCode(input: ConsumeBotLinkCodeInput): Promis
     chatId: input.chatId,
     chatType: input.chatType ?? null,
   });
-  return { status: 'linked', userId, profileId: link.activeProfileId };
+  return { status: "linked", userId, profileId: link.activeProfileId };
 }
 
 /** The active (non-revoked) link for a chat, or null. */
-export async function getActiveBotLink(platform: string, chatId: string): Promise<ActiveBotLink | null> {
-  if (!platform || typeof chatId !== 'string' || !chatId || chatId.length > MAX_CHAT_ID_LENGTH) return null;
+export async function getActiveBotLink(
+  platform: string,
+  chatId: string,
+): Promise<ActiveBotLink | null> {
+  if (
+    !platform ||
+    typeof chatId !== "string" ||
+    !chatId ||
+    chatId.length > MAX_CHAT_ID_LENGTH
+  )
+    return null;
   const result = await query(
     `SELECT id, user_id, platform, chat_id, chat_type, active_profile_id
        FROM bot_links
@@ -214,7 +236,7 @@ export async function getActiveBotLink(platform: string, chatId: string): Promis
 }
 
 /** Outcome of a `/profile <name>` switch against the caller's link row (checkbox 97). */
-export type BotProfileSwitchStatus = 'ok' | 'invalid_profile' | 'not_linked';
+export type BotProfileSwitchStatus = "ok" | "invalid_profile" | "not_linked";
 
 export interface SetBotLinkActiveProfileInput {
   platform: BotPlatform;
@@ -239,36 +261,39 @@ export async function setBotLinkActiveProfile(
   input: SetBotLinkActiveProfileInput,
 ): Promise<BotProfileSwitchStatus> {
   if (
-    typeof input.chatId !== 'string' ||
+    typeof input.chatId !== "string" ||
     !input.chatId ||
     input.chatId.length > MAX_CHAT_ID_LENGTH ||
     !Number.isInteger(input.profileId) ||
     input.profileId <= 0
   ) {
-    return 'invalid_profile';
+    return "invalid_profile";
   }
-  const result = await query(
-    `WITH target AS (
-       SELECT 1 FROM profiles WHERE id = $3 AND user_id = $4 AND is_active = TRUE
-     ), updated AS (
-       UPDATE bot_links
-          SET active_profile_id = $3
-        WHERE platform = $1 AND chat_id = $2 AND revoked_at IS NULL AND user_id = $4
-          AND EXISTS (SELECT 1 FROM target)
-        RETURNING id
-     )
-     SELECT (SELECT COUNT(*)::int FROM target) AS has_profile,
-            (SELECT COUNT(*)::int FROM updated) AS updated`,
+  // SQLite 的 CTE 里不能放 UPDATE（PG 可以）：拆成「先校验 profile，再更新」两条语句。
+  // 关键：原实现的 UPDATE 带 `AND EXISTS (SELECT 1 FROM target)` 守卫——profile 无效时
+  // 绝不写库。拆开后必须用早退保留这个守卫，否则会把链接指向他人的/停用的档案。
+  const profileCheck = await query(
+    `SELECT 1 FROM profiles WHERE id = $1 AND user_id = $2 AND is_active = TRUE`,
+    [input.profileId, input.userId],
+  );
+  if (profileCheck.rows.length === 0) return "invalid_profile";
+
+  const updated = await query(
+    `UPDATE bot_links
+        SET active_profile_id = $3
+      WHERE platform = $1 AND chat_id = $2 AND revoked_at IS NULL AND user_id = $4
+      RETURNING id`,
     [input.platform, input.chatId, input.profileId, input.userId],
   );
-  const row = result.rows[0] as { has_profile?: unknown; updated?: unknown } | undefined;
-  if (Number(row?.has_profile ?? 0) === 0) return 'invalid_profile';
-  if (Number(row?.updated ?? 0) === 0) return 'not_linked';
-  return 'ok';
+  if (updated.rows.length === 0) return "not_linked";
+  return "ok";
 }
 
 /** `/unlink`: soft-revoke. Returns false when the chat had no active link. */
-export async function revokeBotLink(platform: string, chatId: string): Promise<boolean> {
+export async function revokeBotLink(
+  platform: string,
+  chatId: string,
+): Promise<boolean> {
   const result = await query(
     `UPDATE bot_links
         SET revoked_at = CURRENT_TIMESTAMP
@@ -279,7 +304,10 @@ export async function revokeBotLink(platform: string, chatId: string): Promise<b
 }
 
 /** Refresh `last_seen_at` for an active link (activity heartbeat). */
-export async function touchBotLink(platform: string, chatId: string): Promise<void> {
+export async function touchBotLink(
+  platform: string,
+  chatId: string,
+): Promise<void> {
   await query(
     `UPDATE bot_links
         SET last_seen_at = CURRENT_TIMESTAMP
@@ -302,26 +330,35 @@ export async function writeBotAuditLog(entry: BotAuditEntry): Promise<void> {
   await query(
     `INSERT INTO bot_audit_logs (user_id, platform, chat_id, command, args_redacted, result)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [entry.userId, entry.platform, entry.chatId, entry.command, entry.argsRedacted, entry.result],
+    [
+      entry.userId,
+      entry.platform,
+      entry.chatId,
+      entry.command,
+      entry.argsRedacted,
+      entry.result,
+    ],
   );
 }
 
 /** Argument kinds recorded in the audit - never the values themselves. */
-export const REDACTED_ARG_KINDS = ['integer', 'date', 'time', 'text'] as const;
+export const REDACTED_ARG_KINDS = ["integer", "date", "time", "text"] as const;
 export type RedactedArgKind = (typeof REDACTED_ARG_KINDS)[number];
 
 const MAX_REDACTED_ARGS = 16;
 
 function classifyArgument(value: string): RedactedArgKind {
-  if (/^\d{1,9}$/.test(value)) return 'integer';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'date';
-  if (/^\d{1,2}:\d{2}$/.test(value)) return 'time';
-  return 'text';
+  if (/^\d{1,9}$/.test(value)) return "integer";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return "date";
+  if (/^\d{1,2}:\d{2}$/.test(value)) return "time";
+  return "text";
 }
 
 /** Printable, bounded label so a hostile command name cannot smuggle control characters. */
 export function sanitizeAuditText(value: unknown, maxLength = 32): string {
-  return String(value ?? '').replace(/[^\x20-\x7E]/g, '?').slice(0, maxLength);
+  return String(value ?? "")
+    .replace(/[^\x20-\x7E]/g, "?")
+    .slice(0, maxLength);
 }
 
 /**
@@ -330,7 +367,14 @@ export function sanitizeAuditText(value: unknown, maxLength = 32): string {
  * substring can survive into the audit row.
  */
 export function redactCommandArgs(command: string, rawArgs: string): string {
-  const args = typeof rawArgs === 'string' && rawArgs.trim() ? rawArgs.trim().split(/\s+/) : [];
+  const args =
+    typeof rawArgs === "string" && rawArgs.trim()
+      ? rawArgs.trim().split(/\s+/)
+      : [];
   const argKinds = args.slice(0, MAX_REDACTED_ARGS).map(classifyArgument);
-  return JSON.stringify({ command: sanitizeAuditText(command, 32), argCount: args.length, argKinds });
+  return JSON.stringify({
+    command: sanitizeAuditText(command, 32),
+    argCount: args.length,
+    argKinds,
+  });
 }

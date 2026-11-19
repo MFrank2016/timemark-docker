@@ -231,7 +231,7 @@ export async function createCollaborationInvite(
   const result = await query(
     `INSERT INTO collaboration_invites
        (owner_user_id, guest_email, role, scope_profile_id, scope_tag, scope_entity_types, token_hash, label, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, now() + ($9 || ' days')::interval)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, datetime('now', '+' || $9 || ' days'))
      RETURNING *`,
     [ownerUserId, email, input.role, profileId, tag, JSON.stringify(entityTypes), hashShareToken(raw), input.label ?? null, String(days)],
   );

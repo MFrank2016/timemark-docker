@@ -90,7 +90,7 @@ features.get('/annual-report', async (c) => {
 features.get('/conflicts', async (c) => {
   const userId = Number(c.get('user').id);
   const result = await query(
-    `SELECT date, COUNT(*)::int AS count, array_agg(name) AS names
+    `SELECT date, CAST(COUNT(*) AS INTEGER) AS count, json_group_array(name) AS names
      FROM events WHERE user_id = $1
      GROUP BY date HAVING COUNT(*) > 1
      ORDER BY date`,

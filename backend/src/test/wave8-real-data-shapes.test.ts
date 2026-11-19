@@ -185,7 +185,8 @@ function timelineResponder(state: TimelineState): Responder {
     if (s.startsWith('SELECT id FROM fixed_contacts WHERE id = $1 AND user_id = $2')) {
       return state.alive ? { rows: [{ id: CONTACT_ID }], rowCount: 1 } : { rows: [], rowCount: 0 };
     }
-    if (s.includes('::int AS count')) {
+    // 实现改用 CAST(... AS INTEGER) AS count（SQLite 无 ::int），mock 同步匹配。
+    if (s.includes('AS INTEGER) AS count') || s.includes('::int AS count')) {
       const total = state.countAfterDelete ? 0 : state.rows.length;
       return { rows: [{ count: total }], rowCount: 1 };
     }
@@ -318,6 +319,7 @@ describe('fixture 1 failure: contact deleted mid-timeline-pagination', () => {
     expect(page2.body.error).toBe('联系人不存在');
     expect(queriesMatching(/UNION ALL/)).toHaveLength(0);
     expect(queriesMatching(/::int AS count/)).toHaveLength(0);
+    // SQLite 形态：CAST(... AS INTEGER) AS count
   });
 
   it('a delete between the ownership probe and the page read yields a clean empty page', async () => {

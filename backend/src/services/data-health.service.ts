@@ -136,26 +136,26 @@ async function detectContactsNoEmail(userId: number): Promise<DetectorResult> {
   const count = await scalarCount(
     `SELECT count(*)::int AS count FROM fixed_contacts WHERE user_id = $1
    AND COALESCE(greeting_opt_out, FALSE) = FALSE
-   AND (email IS NULL OR btrim(email) = '')
+   AND (email IS NULL OR trim(email) = '')
    AND NOT EXISTS (
-     SELECT 1 FROM jsonb_array_elements(
-       CASE WHEN jsonb_typeof(contact_methods -> 'emails') = 'array'
-            THEN contact_methods -> 'emails'
-            ELSE '[]'::jsonb END
-     ) e WHERE COALESCE(e ->> 'value', '') <> ''
+     SELECT 1 FROM json_each(
+       CASE WHEN json_type(contact_methods, '$.emails') = 'array'
+            THEN json_extract(contact_methods, '$.emails')
+            ELSE '[]' END
+     ) e WHERE COALESCE(json_extract(e.value, '$.value'), '') <> ''
    )`,
     [userId],
   );
   const rows = await query(
     `SELECT id, name, birth_date FROM fixed_contacts WHERE user_id = $1
    AND COALESCE(greeting_opt_out, FALSE) = FALSE
-   AND (email IS NULL OR btrim(email) = '')
+   AND (email IS NULL OR trim(email) = '')
    AND NOT EXISTS (
-     SELECT 1 FROM jsonb_array_elements(
-       CASE WHEN jsonb_typeof(contact_methods -> 'emails') = 'array'
-            THEN contact_methods -> 'emails'
-            ELSE '[]'::jsonb END
-     ) e WHERE COALESCE(e ->> 'value', '') <> ''
+     SELECT 1 FROM json_each(
+       CASE WHEN json_type(contact_methods, '$.emails') = 'array'
+            THEN json_extract(contact_methods, '$.emails')
+            ELSE '[]' END
+     ) e WHERE COALESCE(json_extract(e.value, '$.value'), '') <> ''
    ) ORDER BY id LIMIT 8`,
     [userId],
   );
@@ -216,12 +216,12 @@ async function detectExpiredNotArchived(userId: number): Promise<DetectorResult>
   return { count, examples: rows.rows };
 }
 
-const DUPLICATE_CONTACTS_GROUPS = `SELECT lower(btrim(name)) AS name, count(*)::int AS occurrences, array_agg(id ORDER BY id) AS ids
+const DUPLICATE_CONTACTS_GROUPS = `SELECT lower(trim(name)) AS name, count(*)::int AS occurrences, json_group_array(id) AS ids
    FROM fixed_contacts WHERE user_id = $1 GROUP BY 1 HAVING count(*) > 1 ORDER BY occurrences DESC LIMIT 8`;
 
 async function detectDuplicateContacts(userId: number): Promise<DetectorResult> {
   const count = await scalarCount(
-    'SELECT count(*)::int AS count FROM (SELECT lower(btrim(name)) FROM fixed_contacts WHERE user_id = $1 GROUP BY 1 HAVING count(*) > 1) d',
+    'SELECT count(*)::int AS count FROM (SELECT lower(trim(name)) FROM fixed_contacts WHERE user_id = $1 GROUP BY 1 HAVING count(*) > 1) d',
     [userId],
   );
   const rows = await query(DUPLICATE_CONTACTS_GROUPS, [userId]);
@@ -230,19 +230,19 @@ async function detectDuplicateContacts(userId: number): Promise<DetectorResult> 
 
 async function detectUnsetTimezone(userId: number): Promise<DetectorResult> {
   const cfgCount = await scalarCount(
-    `SELECT count(*)::int AS count FROM user_configs WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')`,
+    `SELECT count(*)::int AS count FROM user_configs WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')`,
     [userId],
   );
   const profileCount = await scalarCount(
-    `SELECT count(*)::int AS count FROM profiles WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')`,
+    `SELECT count(*)::int AS count FROM profiles WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')`,
     [userId],
   );
   const rows = await query(
     `SELECT 'user_config' AS source, user_id AS id, NULL::text AS name FROM user_configs
-       WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')
+       WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')
      UNION ALL
      SELECT 'profile' AS source, id, name FROM profiles
-       WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')
+       WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')
      ORDER BY source LIMIT 8`,
     [userId],
   );
@@ -317,7 +317,7 @@ async function recordRepair(userId: number, result: DataHealthRepairResult, conf
 
 async function repairOrphanTagLinks(userId: number): Promise<number> {
   const result = await query(
-    `DELETE FROM tag_links tl WHERE tl.user_id = $1 AND NOT ${TAG_LINK_ENTITY_EXISTS}`,
+    `DELETE FROM tag_links AS tl WHERE tl.user_id = $1 AND NOT ${TAG_LINK_ENTITY_EXISTS}`,
     [userId],
   );
   return result.rowCount;
@@ -389,14 +389,14 @@ async function repairUnsetTimezone(userId: number): Promise<number> {
   return withTransaction(async (client) => {
     const cfg = await client.query(
       `UPDATE user_configs SET timezone = 'Asia/Shanghai'
-       WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')`,
+       WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')`,
       [userId],
     );
     const profiles = await client.query(
       `UPDATE profiles
-       SET timezone = COALESCE((SELECT NULLIF(btrim(timezone), '') FROM user_configs WHERE user_id = $1), 'Asia/Shanghai'),
+       SET timezone = COALESCE((SELECT NULLIF(trim(timezone), '') FROM user_configs WHERE user_id = $1), 'Asia/Shanghai'),
            updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = $1 AND (timezone IS NULL OR btrim(timezone) = '')`,
+       WHERE user_id = $1 AND (timezone IS NULL OR trim(timezone) = '')`,
       [userId],
     );
     return (cfg.rowCount ?? 0) + (profiles.rowCount ?? 0);
@@ -409,13 +409,13 @@ async function repairContactsNoEmail(userId: number): Promise<number> {
     `UPDATE fixed_contacts SET greeting_opt_out = TRUE, updated_at = CURRENT_TIMESTAMP
      WHERE user_id = $1
        AND COALESCE(greeting_opt_out, FALSE) = FALSE
-       AND (email IS NULL OR btrim(email) = '')
+       AND (email IS NULL OR trim(email) = '')
        AND NOT EXISTS (
-         SELECT 1 FROM jsonb_array_elements(
-           CASE WHEN jsonb_typeof(contact_methods -> 'emails') = 'array'
-                THEN contact_methods -> 'emails'
-                ELSE '[]'::jsonb END
-         ) e WHERE COALESCE(e ->> 'value', '') <> ''
+         SELECT 1 FROM json_each(
+           CASE WHEN json_type(contact_methods, '$.emails') = 'array'
+                THEN json_extract(contact_methods, '$.emails')
+                ELSE '[]' END
+         ) e WHERE COALESCE(json_extract(e.value, '$.value'), '') <> ''
        )`,
     [userId],
   );

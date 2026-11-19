@@ -546,10 +546,10 @@ async function answerSpendByKind(
     kindClause = ` AND kind = $${sqlParams.length}`;
   }
   const result = await query(
-    `SELECT kind, currency, COALESCE(SUM(amount_cents), 0)::bigint AS cents, COUNT(*)::int AS count
+    `SELECT kind, currency, CAST(COALESCE(SUM(amount_cents), 0) AS INTEGER) AS cents, CAST(COUNT(*) AS INTEGER) AS count
      FROM expiry_items
      WHERE user_id = $1 AND is_active = TRUE AND amount_cents IS NOT NULL
-       AND next_due_date >= $2::date AND next_due_date < $3::date${kindClause}
+       AND next_due_date >= $2 AND next_due_date < $3${kindClause}
      GROUP BY kind, currency
      ORDER BY kind ASC, currency ASC`,
     sqlParams,

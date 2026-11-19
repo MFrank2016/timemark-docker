@@ -1,4 +1,4 @@
-import { query } from '../db/index.js';
+import { query } from "../db/index.js";
 
 /**
  * 10-char prefix invariant (migration 51): `event_trigger_logs.trigger_date` is TEXT.
@@ -20,22 +20,20 @@ import { query } from '../db/index.js';
  * `::date::text` keeps the prefix comparison on the same DB-local day.
  */
 export async function aggregateDailyStats(): Promise<number> {
+  // SQLite 无 LATERAL / INTERVAL / LEFT()：改为相关标量子查询 + substr。
+  // `(CURRENT_DATE - INTERVAL '1 day')::date` → date('now','-1 day')
   const result = await query(
     `INSERT INTO stats_daily (user_id, stat_date, events_count, triggers_total, triggers_success, triggers_failed)
      SELECT u.id,
-            (CURRENT_DATE - INTERVAL '1 day')::date,
-            (SELECT COUNT(*)::int FROM events e WHERE e.user_id = u.id),
-            COALESCE(t.total, 0),
-            COALESCE(t.success, 0),
-            COALESCE(t.failed, 0)
-     FROM users u
-     LEFT JOIN LATERAL (
-       SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE status = 'success')::int AS success,
-              COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
-       FROM event_trigger_logs
-       WHERE user_id = u.id AND LEFT(trigger_date, 10) = (CURRENT_DATE - INTERVAL '1 day')::date::text
-     ) t ON TRUE
+            date('now', '-1 day'),
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM events e WHERE e.user_id = u.id),
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM event_trigger_logs
+              WHERE user_id = u.id AND substr(trigger_date, 1, 10) = date('now', '-1 day')),
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM event_trigger_logs
+              WHERE user_id = u.id AND substr(trigger_date, 1, 10) = date('now', '-1 day') AND status = 'success'),
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM event_trigger_logs
+              WHERE user_id = u.id AND substr(trigger_date, 1, 10) = date('now', '-1 day') AND status = 'failed')
+     FROM users u WHERE true
      ON CONFLICT (user_id, stat_date) DO UPDATE SET
        events_count = EXCLUDED.events_count,
        triggers_total = EXCLUDED.triggers_total,

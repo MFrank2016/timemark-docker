@@ -254,7 +254,7 @@ contacts.post('/import-csv', async (c) => {
 
       // 同名去重：同用户同名联系人跳过（与数据健康 duplicate_contacts 同口径）。
       const existing = await query(
-        `SELECT id FROM fixed_contacts WHERE user_id = $1 AND lower(btrim(name)) = lower(btrim($2)) LIMIT 1`,
+        `SELECT id FROM fixed_contacts WHERE user_id = $1 AND lower(trim(name)) = lower(trim($2)) LIMIT 1`,
         [userId, name],
       );
       if (existing.rows.length > 0) {

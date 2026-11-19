@@ -524,7 +524,9 @@ export async function semanticSearch(
 }
 
 async function embeddingsTableReady(): Promise<boolean> {
-  const result = await query(`SELECT to_regclass('public.embeddings') AS table_name`);
+  const result = await query(
+    `SELECT name AS table_name FROM sqlite_master WHERE type = 'table' AND name = 'embeddings'`,
+  );
   return result.rows[0]?.table_name != null;
 }
 

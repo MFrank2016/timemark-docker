@@ -346,6 +346,20 @@ async function fakeQuery(text: string, params: unknown[] = []) {
       .map((event) => ({ id: event.id, name: event.name, date: event.date }));
     return { rows, rowCount: rows.length };
   }
+  if (sql.startsWith('SELECT m.id, m.user_id, m.schedule_times, m.schedule_days')) {
+    // SQLite 版物化：先在 JS 读药品再逐条插入（PG 的 unnest/generate_series 不可用）。
+    const [userId] = params as [number | null];
+    const rows = state.medications
+      .filter((m) => userId == null || m.user_id === userId)
+      .map((m) => ({
+        id: m.id,
+        user_id: m.user_id,
+        schedule_times: '[]',
+        schedule_days: null,
+        tz: 'Asia/Shanghai',
+      }));
+    return { rows, rowCount: rows.length };
+  }
   if (sql.startsWith('INSERT INTO medication_doses')) {
     // getTodayDoses() materialises today's doses idempotently before reading - the same call the
     // in-app get_today tool makes. The SQL log keeps this visible to the read-only assertions.

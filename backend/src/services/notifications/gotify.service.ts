@@ -22,7 +22,7 @@ export async function sendGotifyNotification(
     title = `📅 ${event.name}`;
     message = `📆 日期: ${event.date}\n🏷️ 类型: ${event.type}\n\n🎉 ${blessing}`;
   }
-  await axios.post(`${serverUrl}/message`, {
+  await axios.post(`${serverUrl.replace(/\/+$/, '')}/message`, {
     title,
     message,
     priority,

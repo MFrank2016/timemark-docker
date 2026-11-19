@@ -50,10 +50,15 @@ async function resolveUserIdByFeedToken(token: string): Promise<number | null> {
   );
   if (legacy.rows.length) return legacy.rows[0].user_id as number;
 
+  // SQLite 无 PG 的 `@>` JSON 包含操作符：改为展开数组后按字段比较。
+  // PG 原语义 `calendar_feed_tokens @> '[{"token":"x"}]'` = 数组含 token 字段为 x 的元素。
   const multi = await query(
     `SELECT user_id FROM user_configs
-     WHERE calendar_feed_tokens @> $1::jsonb`,
-    [JSON.stringify([{ token }])],
+     WHERE EXISTS (
+       SELECT 1 FROM json_each(calendar_feed_tokens)
+       WHERE json_extract(value, '$.token') = $1
+     )`,
+    [token],
   );
   if (multi.rows.length) return multi.rows[0].user_id as number;
   return null;

@@ -152,8 +152,9 @@ function installDb(seed: Seed = {}): void {
   dbQuery.mockImplementation(async (sql: string, params: unknown[] = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
 
-    if (s.includes('to_regclass')) {
-      return { rows: [{ table_name: store.tablePresent ? 'embeddings' : null }], rowCount: 1 };
+    // SQLite 无 to_regclass：实现改为查 sqlite_master，这里按新形态模拟同一语义。
+    if (s.includes('sqlite_master')) {
+      return { rows: store.tablePresent ? [{ table_name: 'embeddings' }] : [], rowCount: store.tablePresent ? 1 : 0 };
     }
     if (s.startsWith('INSERT INTO embeddings')) {
       const [userId, ownerType, ownerId, model, dims, embedding, contentHash] = params as [

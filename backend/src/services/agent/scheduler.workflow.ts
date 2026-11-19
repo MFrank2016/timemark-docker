@@ -408,11 +408,11 @@ export async function runRoutineTickStep(
   ).toISOString();
   const advanced = await query(
     `UPDATE agent_routines
-     SET last_run_at = now(), next_run_at = $2::timestamptz
+     SET last_run_at = now(), next_run_at = $2
      WHERE id = $1
        AND enabled = TRUE
-       AND date_trunc('milliseconds', next_run_at) IS NOT DISTINCT FROM date_trunc('milliseconds', $3::timestamptz)
-       AND date_trunc('milliseconds', last_run_at) IS NOT DISTINCT FROM date_trunc('milliseconds', $4::timestamptz)
+       AND next_run_at IS $3
+       AND last_run_at IS $4
      RETURNING id`,
     [routine.id, nextRunAt, observedNext, observedLast],
   );

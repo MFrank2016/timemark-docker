@@ -1,5 +1,8 @@
-import { query } from '../db/index.js';
-import { decryptFieldValue, encryptFieldValue } from './field-encryption.service.js';
+import { query } from "../db/index.js";
+import {
+  decryptFieldValue,
+  encryptFieldValue,
+} from "./field-encryption.service.js";
 import type {
   CreateContactPromiseInput,
   CreateGiftRecordInput,
@@ -9,7 +12,7 @@ import type {
   GiftRecordRow,
   InteractionRow,
   TimelineEntry,
-} from '@timemark/shared';
+} from "@timemark/shared";
 
 /**
  * 个人 CRM 服务（D4，todo 60/61）。
@@ -22,9 +25,12 @@ import type {
  */
 
 /** 该联系人是否属于该用户 */
-export async function contactOwnedBy(userId: number, contactId: number): Promise<boolean> {
+export async function contactOwnedBy(
+  userId: number,
+  contactId: number,
+): Promise<boolean> {
   const result = await query(
-    'SELECT id FROM fixed_contacts WHERE id = $1 AND user_id = $2',
+    "SELECT id FROM fixed_contacts WHERE id = $1 AND user_id = $2",
     [contactId, userId],
   );
   return result.rows.length > 0;
@@ -46,7 +52,14 @@ export async function createInteraction(
      FROM fixed_contacts fc
      WHERE fc.id = $2 AND fc.user_id = $1
      RETURNING *`,
-    [userId, contactId, input.kind, occurredAt, encryptFieldValue(input.summary ?? null), input.mood ?? null],
+    [
+      userId,
+      contactId,
+      input.kind,
+      occurredAt,
+      encryptFieldValue(input.summary ?? null),
+      input.mood ?? null,
+    ],
   );
   if (!result.rows[0]) return null;
 
@@ -71,11 +84,11 @@ export async function listContactTimeline(
   if (!(await contactOwnedBy(userId, contactId))) return null;
 
   const countResult = await query(
-    `SELECT (
+    `SELECT CAST((
        (SELECT COUNT(*) FROM interactions WHERE user_id = $1 AND contact_id = $2)
        + (SELECT COUNT(*) FROM contact_promises WHERE contact_id = $2)
        + (SELECT COUNT(*) FROM gift_records WHERE contact_id = $2)
-     )::int AS count`,
+     ) AS INTEGER) AS count`,
     [userId, contactId],
   );
 
@@ -104,7 +117,9 @@ export async function listContactTimeline(
 
   return {
     items: (result.rows as TimelineEntry[]).map((entry) =>
-      entry.summary == null ? entry : { ...entry, summary: decryptFieldValue(entry.summary) },
+      entry.summary == null
+        ? entry
+        : { ...entry, summary: decryptFieldValue(entry.summary) },
     ),
     total: Number(countResult.rows[0]?.count ?? 0),
   };
@@ -160,7 +175,9 @@ export async function createGiftRecord(
  *   （checkbox 62 的提醒任务会自行跳过从未联系的人）；
  * - cadence_days = NULL 的一律排除（不会被当成每天都到期）。
  */
-export async function listDueContacts(userId: number): Promise<DueContactRow[]> {
+export async function listDueContacts(
+  userId: number,
+): Promise<DueContactRow[]> {
   const result = await query(
     `SELECT fc.id, fc.user_id, fc.name, fc.nickname, fc.email, fc.phone,
             fc.relationship, fc.gender,

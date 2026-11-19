@@ -196,7 +196,8 @@ describe('GET /api/contacts/:id/timeline', () => {
       if (/^SELECT id FROM fixed_contacts WHERE id = \$1 AND user_id = \$2/.test(s)) {
         return { rows: [{ id: CONTACT_ID }], rowCount: 1 };
       }
-      if (s.includes('::int AS count')) return { rows: [{ count: 5 }], rowCount: 1 };
+      // 实现改用 CAST(... AS INTEGER) AS count（SQLite 无 ::int）。
+      if (s.includes('AS INTEGER) AS count') || s.includes('::int AS count')) return { rows: [{ count: 5 }], rowCount: 1 };
       if (s.includes('UNION ALL')) {
         return {
           rows: [
@@ -215,7 +216,7 @@ describe('GET /api/contacts/:id/timeline', () => {
     expect(body.data).toHaveLength(2);
     expect(body.pagination).toEqual({ page: 2, limit: 3, total: 5, totalPages: 2 });
 
-    const [countQuery] = queriesMatching(/::int AS count/);
+    const [countQuery] = queriesMatching(/AS INTEGER\) AS count|::int AS count/);
     expect(countQuery.sql).toContain('FROM interactions WHERE user_id = $1 AND contact_id = $2');
     expect(countQuery.sql).toContain('FROM contact_promises WHERE contact_id = $2');
     expect(countQuery.sql).toContain('FROM gift_records WHERE contact_id = $2');
@@ -233,7 +234,7 @@ describe('GET /api/contacts/:id/timeline', () => {
     installDb((sql) => {
       const s = sql.replace(/\s+/g, ' ');
       if (/^SELECT id FROM fixed_contacts/.test(s)) return { rows: [{ id: CONTACT_ID }], rowCount: 1 };
-      if (s.includes('::int AS count')) return { rows: [{ count: 0 }], rowCount: 1 };
+      if (s.includes('AS INTEGER) AS count') || s.includes('::int AS count')) return { rows: [{ count: 0 }], rowCount: 1 };
       return undefined;
     });
 
