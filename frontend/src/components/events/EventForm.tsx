@@ -748,17 +748,16 @@ export function EventForm({ open, onClose, onSubmit, event }: EventFormProps) {
     });
   };
 
+  // 表单改为整体一次淡入，不再逐字段 stagger —— 逐字段 opacity/y 入场在打开时会
+  // 出现多次 opacity:0 重绘，叠加 dialog 动画后视觉上像「一闪一闪」。
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08 }
-    }
+    visible: { opacity: 1 }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } as const }
+    hidden: {},
+    visible: {}
   };
 
   return (
@@ -1187,14 +1186,10 @@ export function EventForm({ open, onClose, onSubmit, event }: EventFormProps) {
               />
             </div>
 
-            <AnimatePresence>
-              {formData.reminderConfig.enabled && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-4 pl-2 border-l-2 border-primary-500/30"
-                >
+            {/* 提醒配置区：去掉展开动画的 opacity/height 重放——打开表单时会因多次
+                setFormData 导致此块反复 mount/unmount，逐帧 opacity:0 造成视觉闪烁。 */}
+            {formData.reminderConfig.enabled && (
+                <div className="space-y-4 pl-2 border-l-2 border-primary-500/30">
                   {/* 提醒时间（可多选 - 预设 + 自定义） */}
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">提醒时间（可多选）</label>
@@ -1397,9 +1392,8 @@ export function EventForm({ open, onClose, onSubmit, event }: EventFormProps) {
                   )}
 
 
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </motion.div>
 
           {/* 通知预览 */}
