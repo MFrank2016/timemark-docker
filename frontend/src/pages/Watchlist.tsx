@@ -1,0 +1,411 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Clapperboard, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+
+/**
+ * v2.31 R5（审计 D3）：观影/追剧清单页——后端 watchlist 路由（task 158）此前
+ * 只有 API 没有任何前端入口。待看/在看/看完/弃剧 四态 + 类型筛选 + 评分 + 上映日期。
+ */
+
+type WatchKind = 'film' | 'series' | 'book' | 'game' | 'other';
+type WatchStatus = 'wanted' | 'in_progress' | 'done' | 'dropped';
+
+interface WatchItem {
+  id: number;
+  kind: WatchKind;
+  title: string;
+  status: WatchStatus;
+  release_date: string | null;
+  source: string | null;
+  link: string | null;
+  rating: number | null;
+  note: string;
+}
+
+const KIND_LABELS: Record<WatchKind, string> = { film: '电影', series: '剧集', book: '书', game: '游戏', other: '其他' };
+const STATUS_LABELS: Record<WatchStatus, string> = { wanted: '想看', in_progress: '在看', done: '看完', dropped: '弃了' };
+const STATUS_ORDER: WatchStatus[] = ['wanted', 'in_progress', 'done', 'dropped'];
+
+const KIND_TABS: Array<[WatchKind | '', string]> = [
+  ['', '全部'],
+  ['film', '电影'],
+  ['series', '剧集'],
+  ['book', '书'],
+  ['game', '游戏'],
+  ['other', '其他'],
+];
+
+export default function Watchlist() {
+  const [items, setItems] = useState<WatchItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kindFilter, setKindFilter] = useState<WatchKind | ''>('');
+  const [statusFilter, setStatusFilter] = useState<WatchStatus | ''>('');
+  const [newTitle, setNewTitle] = useState('');
+  const [newKind, setNewKind] = useState<WatchKind>('film');
+  // v2.31 审计 #4：release_date 此前无法设置，"即将上映"区块是死区
+  const [newRelease, setNewRelease] = useState('');
+  // v2.36 R21（审计 #10）：条目编辑抽屉
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [edit, setEdit] = useState<{ title: string; kind: WatchKind; releaseDate: string; source: string; link: string; note: string; rating: string } | null>(null);
+  // v2.35 R19（审计 #9）：source 两端全断——后端支持但表单不收也不展示
+  const [newSource, setNewSource] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api
+      .get<{ items: WatchItem[] }>('/watchlist')
+      .then((d) => setItems(d.items ?? []))
+      .catch((e) => setError(e instanceof Error ? e.message : '加载失败'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (it) => (!kindFilter || it.kind === kindFilter) && (!statusFilter || it.status === statusFilter),
+      ),
+    [items, kindFilter, statusFilter],
+  );
+
+  // v2.34 R14（审计 #12）：改用服务端 /watchlist/upcoming（此前客户端重算且硬编码 5 条）
+  const [upcoming, setUpcoming] = useState<WatchItem[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ items: WatchItem[] }>('/watchlist/upcoming')
+      .then((d) => { if (!cancelled) setUpcoming((d.items ?? []).slice(0, 5)); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [items.length]);
+
+  const add = async () => {
+    if (!newTitle.trim()) {
+      setError('请填写标题');
+      return;
+    }
+    setAdding(true);
+    setError('');
+    try {
+      await api.post('/watchlist', {
+        title: newTitle.trim(),
+        kind: newKind,
+        status: 'wanted',
+        releaseDate: newRelease || null,
+        source: newSource.trim() || null,
+      });
+      setNewTitle('');
+      setNewRelease('');
+      setNewSource('');
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '添加失败');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const patch = async (id: number, body: Partial<{ status: WatchStatus; rating: number | null }>) => {
+    setBusyId(id);
+    setError('');
+    try {
+      await api.patch(`/watchlist/${id}`, body);
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...body } : it)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '更新失败');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openEdit = (it: WatchItem) => {
+    setEditingId(it.id);
+    setEdit({
+      title: it.title,
+      kind: it.kind,
+      releaseDate: it.release_date ?? '',
+      source: it.source ?? '',
+      link: it.link ?? '',
+      note: it.note,
+      rating: it.rating !== null ? String(it.rating) : '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!edit || editingId === null) return;
+    if (!edit.title.trim()) {
+      setError('标题不能为空');
+      return;
+    }
+    const ratingNum = edit.rating.trim() === '' ? null : Number(edit.rating);
+    if (ratingNum !== null && (!Number.isInteger(ratingNum) || ratingNum < 0 || ratingNum > 10)) {
+      setError('评分必须是 0-10 的整数');
+      return;
+    }
+    setBusyId(editingId);
+    setError('');
+    try {
+      await api.patch(`/watchlist/${editingId}`, {
+        title: edit.title.trim(),
+        kind: edit.kind,
+        releaseDate: edit.releaseDate || null,
+        source: edit.source.trim() || null,
+        link: edit.link.trim() || null,
+        note: edit.note,
+        ...(ratingNum !== null ? { rating: ratingNum } : { rating: null }),
+      });
+      setItems((prev) => prev.map((it) => (it.id === editingId ? { ...it, ...edit, release_date: edit.releaseDate || null, source: edit.source.trim() || null, link: edit.link.trim() || null, rating: ratingNum } : it)));
+      setEditingId(null);
+      setEdit(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '保存失败');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (id: number) => {
+    if (!(await confirm({ title: '确定删除该条目？', tone: 'danger', confirmLabel: '删除' }))) return;
+    setBusyId(id);
+    try {
+      await api.delete(`/watchlist/${id}`);
+      setItems((prev) => prev.filter((it) => it.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '删除失败');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen pb-24">
+      <PageHeader
+        title="观影清单"
+        subtitle="想看 / 在看 / 看完 · 电影剧集书游戏"
+        back="smart"
+        onRefresh={load}
+        refreshing={loading}
+      />
+
+      <main className="max-w-3xl mx-auto px-6 py-6 space-y-5">
+        {/* 快速添加 */}
+        <div className="glass-panel rounded-3xl p-4 flex flex-wrap gap-2 items-center">
+          <Input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="标题（如：沙丘 3）"
+            aria-label="新条目标题"
+            className="flex-1 min-w-[10rem]"
+            onKeyDown={(e) => e.key === 'Enter' && void add()}
+          />
+          <select
+            value={newKind}
+            onChange={(e) => setNewKind(e.target.value as WatchKind)}
+            aria-label="类型"
+            className="h-10 px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white"
+          >
+            {Object.entries(KIND_LABELS).map(([v, label]) => (
+              <option key={v} value={v}>{label}</option>
+            ))}
+          </select>
+          <Input
+            type="date"
+            value={newRelease}
+            onChange={(e) => setNewRelease(e.target.value)}
+            aria-label="上映/发布日期（可选）"
+            className="w-36"
+          />
+          <Input
+            value={newSource}
+            onChange={(e) => setNewSource(e.target.value)}
+            placeholder="来源（可选）"
+            aria-label="来源（可选）"
+            className="w-32"
+          />
+          <Button onClick={() => void add()} disabled={adding} aria-label="添加到清单">
+            {adding ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Plus className="w-4 h-4 mr-1" aria-hidden />}
+            添加
+          </Button>
+        </div>
+
+        {error && (
+          <p role="alert" className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-900/10 px-4 py-2 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </p>
+        )}
+
+        {/* 即将上映 */}
+        {upcoming.length > 0 && (
+          <section aria-label="即将上映">
+            <h2 className="text-sm font-bold text-hint mb-2 px-1">即将上映</h2>
+            <ul className="space-y-1.5">
+              {upcoming.map((it) => (
+                <li key={it.id} className="glass-panel rounded-2xl px-4 py-2.5 text-sm flex items-center gap-3">
+                  <Badge variant="outline" className="scale-90 shrink-0">{KIND_LABELS[it.kind]}</Badge>
+                  <span className="font-medium text-slate-800 dark:text-slate-100 truncate">{it.title}</span>
+                  <span className="ml-auto text-xs text-slate-400 shrink-0 tabular-nums">{it.release_date}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* 筛选 */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden" role="tablist" aria-label="状态筛选">
+            {([['', '全部'], ...STATUS_ORDER.map((s) => [s, STATUS_LABELS[s]] as const)] as const).map(([v, label]) => (
+              <button
+                key={v || 'all'}
+                role="tab"
+                aria-selected={statusFilter === v}
+                onClick={() => setStatusFilter(v as WatchStatus | '')}
+                className={`px-3 h-9 text-xs transition ${statusFilter === v ? 'bg-primary-500/10 text-primary-600 dark:text-primary-300 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden" role="tablist" aria-label="类型筛选">
+            {KIND_TABS.map(([v, label]) => (
+              <button
+                key={v || 'all'}
+                role="tab"
+                aria-selected={kindFilter === v}
+                onClick={() => setKindFilter(v as WatchKind | '')}
+                className={`px-3 h-9 text-xs transition ${kindFilter === v ? 'bg-primary-500/10 text-primary-600 dark:text-primary-300 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 列表 */}
+        {loading ? (
+          <SkeletonCard count={4} />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Clapperboard} title="清单是空的" description="添加想看的电影/剧集/书/游戏，追踪观看到哪一集" />
+        ) : (
+          <ul className="space-y-2.5">
+            {filtered.map((it) => (
+              <li key={it.id} className="glass-panel rounded-2xl p-4">
+                {/* v2.36 R21（审计 #10）：编辑抽屉 */}
+                {editingId === it.id && edit && (
+                  <div className="space-y-2 mb-3 rounded-2xl border border-primary-200/60 dark:border-primary-800/50 p-3">
+                    <Input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} aria-label="编辑标题" placeholder="标题" />
+                    <div className="flex flex-wrap gap-2">
+                      <select value={edit.kind} onChange={(e) => setEdit({ ...edit, kind: e.target.value as WatchKind })} aria-label="编辑类型" className="h-10 px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white">
+                        {Object.entries(KIND_LABELS).map(([v, label]) => (<option key={v} value={v}>{label}</option>))}
+                      </select>
+                      <Input type="date" value={edit.releaseDate} onChange={(e) => setEdit({ ...edit, releaseDate: e.target.value })} aria-label="编辑上映日期" className="w-36" />
+                      <Input value={edit.rating} onChange={(e) => setEdit({ ...edit, rating: e.target.value })} placeholder="评分 0-10" aria-label="编辑评分" inputMode="numeric" className="w-24" />
+                    </div>
+                    <Input value={edit.source} onChange={(e) => setEdit({ ...edit, source: e.target.value })} placeholder="来源" aria-label="编辑来源" />
+                    <Input value={edit.link} onChange={(e) => setEdit({ ...edit, link: e.target.value })} placeholder="链接（豆瓣/Bangumi 等）" aria-label="编辑链接" />
+                    <Input value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} placeholder="备注（看到哪一集…）" aria-label="编辑备注" />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => void saveEdit()} disabled={busyId === it.id} aria-label="保存编辑">保存</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEdit(null); }} aria-label="取消编辑">取消</Button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-slate-900 dark:text-white truncate">{it.title}</h3>
+                      <Badge variant="outline" className="scale-90">{KIND_LABELS[it.kind]}</Badge>
+                      {it.rating !== null && (
+                        <span className="flex items-center gap-0.5 text-xs text-amber-500" aria-label={`评分 ${it.rating}`}>
+                          <Star size={12} className="fill-amber-400" aria-hidden /> {it.rating}
+                        </span>
+                      )}
+                    </div>
+                    {it.release_date && <p className="text-xs text-slate-400 mt-0.5">上映/发布：{it.release_date}</p>}
+                    {it.source && <p className="text-xs text-slate-400 mt-0.5">来源：{it.source}</p>}
+                    {it.link && (
+                      <a href={it.link} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5 inline-block">
+                        打开条目链接 ↗
+                      </a>
+                    )}
+                    {it.note && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">{it.note}</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                    <select
+                      value={it.status}
+                      onChange={(e) => void patch(it.id, { status: e.target.value as WatchStatus })}
+                      disabled={busyId === it.id}
+                      aria-label={`更新「${it.title}」状态`}
+                      className="h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    >
+                      {STATUS_ORDER.map((s) => (
+                        <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                      ))}
+                    </select>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="min-h-9 min-w-9 text-slate-400 hover:text-amber-500"
+                      aria-label={`为「${it.title}」评 8 分`}
+                      title={it.rating !== null ? `评分 ${it.rating}（点击清除）` : '记评分（0-10）'}
+                      disabled={busyId === it.id}
+                      onClick={() => {
+                        const raw = it.rating !== null
+                          ? null
+                          : prompt(`为「${it.title}」评分（0-10 整数）`, '8');
+                        if (it.rating === null && raw === null) return;
+                        if (it.rating !== null) { void patch(it.id, { rating: null }); return; }
+                        const value = Number(raw);
+                        if (!Number.isInteger(value) || value < 0 || value > 10) {
+                          setError('评分必须是 0-10 的整数');
+                          return;
+                        }
+                        void patch(it.id, { rating: value });
+                      }}
+                    >
+                      <Star size={15} className={it.rating !== null ? 'fill-amber-400 text-amber-500' : ''} aria-hidden />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="min-h-9 min-w-9 text-slate-500"
+                      aria-label={`编辑「${it.title}」`}
+                      disabled={busyId === it.id}
+                      onClick={() => openEdit(it)}
+                    >
+                      <Pencil size={15} aria-hidden />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="min-h-9 min-w-9 text-red-500"
+                      aria-label={`删除「${it.title}」`}
+                      disabled={busyId === it.id}
+                      onClick={() => void remove(it.id)}
+                    >
+                      {busyId === it.id ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Trash2 size={15} aria-hidden />}
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+      {confirmDialog}
+    </div>
+  );
+}

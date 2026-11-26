@@ -48,6 +48,15 @@ const DataHealthPage = lazy(() => import('./pages/DataHealth'));
 const SharedView = lazy(() => import('./pages/SharedView'));
 const LocalAIPage = lazy(() => import('./pages/LocalAI'));
 const WeeklyReview = lazy(() => import('./pages/WeeklyReview'));
+const CarePage = lazy(() => import('./pages/Care'));
+const VehiclesPage = lazy(() => import('./pages/Vehicles'));
+const TimesheetPage = lazy(() => import('./pages/Timesheet'));
+const PetsPage = lazy(() => import('./pages/Pets'));
+const WatchlistPage = lazy(() => import('./pages/Watchlist'));
+const CollaborationPage = lazy(() => import('./pages/Collaboration'));
+const OcrPage = lazy(() => import('./pages/Ocr'));
+const DataSourcesPage = lazy(() => import('./pages/DataSources'));
+const HouseholdListsPage = lazy(() => import('./pages/HouseholdLists'));
 
 function PageLoader() {
   return (
@@ -130,6 +139,15 @@ function AppRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
     <Route path="/medications" element={<ProtectedRoute pageName="MedicationsPage"><MedicationsPage /></ProtectedRoute>} />
     <Route path="/goals" element={<ProtectedRoute pageName="GoalsPage"><GoalsPage /></ProtectedRoute>} />
     <Route path="/weekly-review" element={<ProtectedRoute pageName="WeeklyReview"><WeeklyReview /></ProtectedRoute>} />
+    <Route path="/care" element={<ProtectedRoute pageName="CarePage"><CarePage /></ProtectedRoute>} />
+    <Route path="/vehicles" element={<ProtectedRoute pageName="VehiclesPage"><VehiclesPage /></ProtectedRoute>} />
+    <Route path="/timesheet" element={<ProtectedRoute pageName="TimesheetPage"><TimesheetPage /></ProtectedRoute>} />
+    <Route path="/pets" element={<ProtectedRoute pageName="PetsPage"><PetsPage /></ProtectedRoute>} />
+    <Route path="/watchlist" element={<ProtectedRoute pageName="WatchlistPage"><WatchlistPage /></ProtectedRoute>} />
+    <Route path="/collaboration" element={<ProtectedRoute pageName="CollaborationPage"><CollaborationPage /></ProtectedRoute>} />
+    <Route path="/ocr" element={<ProtectedRoute pageName="OcrPage"><OcrPage /></ProtectedRoute>} />
+    <Route path="/data-sources" element={<ProtectedRoute pageName="DataSourcesPage"><DataSourcesPage /></ProtectedRoute>} />
+    <Route path="/household-lists" element={<ProtectedRoute pageName="HouseholdListsPage"><HouseholdListsPage /></ProtectedRoute>} />
     {/* v2.26 C：/assistant 页删除 —— AssistantDock 已全局承载同一面板 */}
     <Route path="/agent-console" element={<ProtectedRoute pageName="AgentConsole"><AgentConsole /></ProtectedRoute>} />
     <Route path="/ask" element={<ProtectedRoute pageName="AskPage"><AskPage /></ProtectedRoute>} />

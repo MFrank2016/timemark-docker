@@ -4,6 +4,7 @@ import {
   Bell, Cable, BellRing, FileStack, Inbox, Megaphone,
   AlarmClock, Package, Wrench, FileText, Flame, Pill, Target, Users, CalendarDays, CalendarRange,
   Bot, HeartPulse, Activity, Shield, KeyRound, BookOpen, Rocket, Settings, Container, Cpu, Code2, ClipboardCheck,
+  HeartHandshake, Car, Timer, Cat, Clapperboard, ScanLine, Rss, ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -78,6 +79,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/goals', icon: Target, labelKey: 'nav.goals' },
       { path: '/lunar-holidays', icon: CalendarRange, labelKey: 'nav.lunarHolidays' },
       { path: '/weekly-review', icon: ClipboardCheck, labelKey: 'nav.weeklyReview' },
+      { path: '/care', icon: HeartHandshake, labelKey: 'nav.care' },
+      { path: '/vehicles', icon: Car, labelKey: 'nav.vehicles' },
+      { path: '/timesheet', icon: Timer, labelKey: 'nav.timesheet' },
+      { path: '/pets', icon: Cat, labelKey: 'nav.pets' },
+      { path: '/watchlist', icon: Clapperboard, labelKey: 'nav.watchlist' },
+      { path: '/household-lists', icon: ClipboardList, labelKey: 'nav.householdLists' },
     ],
   },
   {
@@ -85,6 +92,9 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: 'nav.group.system',
     items: [
       // v2.26 C：/assistant 页删除 —— AssistantDock 全局承载，入口只剩一个。
+      { path: '/collaboration', icon: Users, labelKey: 'nav.collaboration' },
+      { path: '/ocr', icon: ScanLine, labelKey: 'nav.ocr' },
+      { path: '/data-sources', icon: Rss, labelKey: 'nav.dataSources' },
       { path: '/local-ai', icon: Cpu, labelKey: 'nav.localAi' },
       { path: '/agent-console', icon: Bot, labelKey: 'nav.agentConsole' },
       { path: '/api-portal', icon: Code2, labelKey: 'nav.apiPortal' },
