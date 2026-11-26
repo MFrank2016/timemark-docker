@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { useEventStore } from "@/stores/event.store";
@@ -236,11 +237,11 @@ export function Dashboard() {
         ([key, r]) => !key.startsWith("_") && r.success,
       );
       if (failed.length > 0) {
-        alert(
+        toast.error(
           `部分渠道失败：\n${failed.map(([ch, r]) => `${ch}: ${r.error || "未知错误"}`).join("\n")}`,
         );
       } else if (succeeded.length === 0) {
-        alert("未找到可用通知渠道，请先在「通知渠道」配置并测试通过。");
+        toast.success("未找到可用通知渠道，请先在「通知渠道」配置并测试通过。");
       } else {
         const detail = succeeded
           .map(([ch, r]) => {
@@ -256,7 +257,7 @@ export function Dashboard() {
         if (goLogs) navigate("/trigger-logs");
       }
     } catch (error) {
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "发送失败，请检查通知渠道与设置中的默认邮箱",
@@ -268,13 +269,13 @@ export function Dashboard() {
     try {
       if (confirm(`确定批量删除 ${selectedIds.length} 个事件？`)) {
         const deletedCount = await deleteEventsBatch(selectedIds);
-        alert(`成功删除 ${deletedCount} 个事件`);
+        toast.success(`成功删除 ${deletedCount} 个事件`);
         setSelectedIds([]);
         setBatchMode(false);
       }
     } catch (error) {
       console.error("Batch delete error:", error);
-      alert(
+      toast.error(
         "批量删除失败: " +
           (error instanceof Error ? error.message : "未知错误"),
       );
@@ -308,7 +309,7 @@ export function Dashboard() {
         if (data.success && data.data?.length > 0) {
           window.open(data.data[0].link, "_blank");
         } else {
-          alert("没有可导出的事件");
+          toast.success("没有可导出的事件");
         }
       } else if (format === "apple") {
         // Subscribe to Apple Calendar
@@ -324,7 +325,7 @@ export function Dashboard() {
       }
     } catch (error) {
       console.error("Export error:", error);
-      alert(
+      toast.error(
         "导出失败: " + (error instanceof Error ? error.message : "未知错误"),
       );
     }

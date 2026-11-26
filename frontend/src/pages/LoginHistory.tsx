@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from '@/lib/toast';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Monitor, Smartphone, Globe, MapPin, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -89,10 +90,10 @@ export default function LoginHistory() {
     try {
       await api.delete('/auth/login-history');
       setLogs([]);
-      alert('登录历史已清空');
+      toast.success('登录历史已清空');
     } catch (error) {
       console.error('Failed to clear logs:', error);
-      alert('清空失败，请稍后重试');
+      toast.error('清空失败，请稍后重试');
     } finally {
       setClearing(false);
     }

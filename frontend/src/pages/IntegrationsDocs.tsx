@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from '@/lib/toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,15 +25,15 @@ export default function IntegrationsDocs() {
   const copyText = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      alert(`${label}已复制`);
+      toast.success(`${label}已复制`);
     } catch {
-      alert('复制失败');
+      toast.error('复制失败');
     }
   };
 
   const testNtfy = async () => {
     if (!ntfyTopic.trim()) {
-      alert('请填写 ntfy Topic');
+      toast.error('请填写 ntfy Topic');
       return;
     }
     setNtfyTesting(true);

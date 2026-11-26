@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { toast } from '@/lib/toast';
 import { motion } from 'framer-motion';
 import { Bell, Trash2, RefreshCw, CheckCircle2, XCircle, Calendar, AlertCircle, SkipForward } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -156,7 +157,7 @@ export default function TriggerLogs() {
       credentials: 'include',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!response.ok) return alert('导出失败');
+    if (!response.ok) return toast.error('导出失败');
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -224,9 +225,9 @@ export default function TriggerLogs() {
     try {
       await api.post(`/trigger-logs/${logId}/retry`, {});
       await fetchLogs();
-      alert('已重新发送，请查看更新后的状态');
+      toast.success('已重新发送，请查看更新后的状态');
     } catch (error) {
-      alert(error instanceof Error ? error.message : '重试失败');
+      toast.error(error instanceof Error ? error.message : '重试失败');
     } finally {
       setRetryingId(null);
     }
@@ -242,9 +243,9 @@ export default function TriggerLogs() {
         {},
       );
       await fetchLogs();
-      alert(`批量重试完成：成功 ${res.retried} 条，仍失败 ${res.failed} 条（候选 ${res.candidates} 条）`);
+      toast.info(`批量重试完成：成功 ${res.retried} 条，仍失败 ${res.failed} 条（候选 ${res.candidates} 条）`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : '批量重试失败');
+      toast.error(error instanceof Error ? error.message : '批量重试失败');
     } finally {
       setRetryingAll(false);
     }
@@ -346,7 +347,7 @@ export default function TriggerLogs() {
                   credentials: 'include',
                   headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
-                if (!res.ok) return alert('导出失败');
+                if (!res.ok) return toast.error('导出失败');
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');

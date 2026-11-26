@@ -10,6 +10,7 @@ import { PageErrorBoundary } from './components/PageErrorBoundary';
 import { SkipLink } from './components/SkipLink';
 import { AssistantDock } from './components/assistant/AssistantDock';
 import { CommandPalette } from './components/CommandPalette';
+import { ToastHost } from './components/ui/toast-host';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -224,6 +225,7 @@ function App() {
           <AnimatedRoutes />
           <AssistantDock />
           <CommandPalette />
+          <ToastHost />
         </div>
       </TimezoneProvider>
     </BrowserRouter>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from '@/lib/toast';
 import { Archive, ChevronDown, Database, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -173,7 +174,7 @@ export function DataManagement() {
                   a.click();
                   window.URL.revokeObjectURL(url);
                 } catch (e) {
-                  alert(e instanceof Error ? e.message : '导出失败');
+                  toast.error(e instanceof Error ? e.message : '导出失败');
                 }
               }}
             >

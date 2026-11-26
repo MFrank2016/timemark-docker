@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from '@/lib/toast';
 import { Plus, Trash2, UserPlus, CheckCircle2, AlertCircle, Users, Upload, Mail, Pencil, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSmartBack } from '@/hooks/useSmartBack';
@@ -310,7 +311,7 @@ export default function Contacts() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || '导入失败');
-      alert(`已从 vCard 导入 ${data.data?.imported ?? 0} 个生日事件`);
+      toast.success(`已从 vCard 导入 ${data.data?.imported ?? 0} 个生日事件`);
       await loadContacts();
     } catch (e) {
       setError(e instanceof Error ? e.message : '导入失败');
@@ -338,7 +339,7 @@ export default function Contacts() {
       if (!res.ok || !data.success) throw new Error(data.error || '导入失败');
       const dup = data.data?.skippedDuplicates ? `，跳过同名 ${data.data.skippedDuplicates} 个` : '';
       const errCount = data.data?.errors?.length ? `，${data.data.errors.length} 行失败` : '';
-      alert(
+      toast.success(
         `已从 CSV 导入 ${data.data?.imported ?? 0} 个联系人${dup}${errCount}` +
         (data.data?.errors?.length ? `\n${data.data.errors.slice(0, 5).join('\n')}` : ''),
       );

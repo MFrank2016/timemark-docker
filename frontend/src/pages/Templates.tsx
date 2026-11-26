@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { toast } from '@/lib/toast';
 import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Calendar, Save, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,7 @@ export default function Templates() {
 
   const handleSave = async () => {
     if (!formData.event_type.trim() || !formData.template_content.trim()) {
-      alert('请填写事件类型和模板内容');
+      toast.error('请填写事件类型和模板内容');
       return;
     }
 
@@ -97,7 +98,7 @@ export default function Templates() {
       loadTemplates();
     } catch (error) {
       console.error('Failed to save template:', error);
-      alert('保存失败');
+      toast.error('保存失败');
     }
   };
 
@@ -109,7 +110,7 @@ export default function Templates() {
       loadTemplates();
     } catch (error) {
       console.error('Failed to delete template:', error);
-      alert('删除失败');
+      toast.error('删除失败');
     }
   };
 
