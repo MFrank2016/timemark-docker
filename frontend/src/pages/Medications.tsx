@@ -31,6 +31,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { useProfileStore } from '@/stores/profile.store';
 import { useTimezoneStore } from '@/stores/timezone.store';
 import {
@@ -528,6 +529,36 @@ export default function Medications() {
       await api.delete(`/medications/${med.id}`);
       setStatus(`已删除「${med.name}」`);
       await refreshAll();
+      toast.success(`已删除「${med.name}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post('/medications', {
+              name: med.name,
+              dosage: med.dosage,
+              form: med.form,
+              scheduleTimes: med.schedule_times,
+              scheduleDays: med.schedule_days,
+              startDate: med.start_date,
+              endDate: med.end_date,
+              stockQuantity: med.stock_quantity,
+              stockUnit: med.stock_unit,
+              unitsPerDose: med.units_per_dose,
+              refillThreshold: med.refill_threshold,
+              prescriber: med.prescriber,
+              pharmacy: med.pharmacy,
+              notes: med.notes,
+              isActive: med.is_active,
+              isCritical: med.is_critical,
+              profileId: med.profile_id,
+            })
+            .then(() => {
+              void refreshAll();
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     }

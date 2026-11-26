@@ -102,6 +102,28 @@ export function ProfileSettings() {
       await api.delete(`/profiles/${profile.id}`);
       if (routingProfile?.id === profile.id) setRoutingProfile(null);
       await load();
+      toast.success(`已删除档案「${profile.name}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post('/profiles', {
+              name: profile.name,
+              relation: profile.relation,
+              kind: profile.kind === 'pet' ? 'pet' : 'family',
+              birthDate: profile.birth_date,
+              lunarBirthday: profile.lunar_birthday,
+              avatarEmoji: profile.avatar_emoji,
+              timezone: profile.timezone,
+              sortOrder: profile.sort_order,
+              isActive: profile.is_active,
+            })
+            .then(() => {
+              void load();
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (error) {
       toast.error('删除失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }

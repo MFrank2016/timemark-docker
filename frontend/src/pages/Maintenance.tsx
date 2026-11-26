@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { daysUntil } from '@/lib/expiry-utils';
 import {
   assetKindLabel,
@@ -387,6 +388,31 @@ export default function Maintenance() {
       await api.delete(`/maintenance/${plan.id}`);
       setStatus(`已删除「${plan.asset_name}」`);
       await Promise.all([loadFiltered(), loadSummary()]);
+      toast.success(`已删除「${plan.asset_name}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post<MaintenancePlan>('/maintenance', {
+              assetName: plan.asset_name,
+              assetKind: plan.asset_kind ?? undefined,
+              intervalDays: plan.interval_days ?? null,
+              intervalUsage: plan.interval_usage ?? null,
+              usageUnit: plan.usage_unit ?? null,
+              currentUsage: plan.current_usage ?? null,
+              nextDueUsage: plan.next_due_usage ?? null,
+              lastDoneAt: plan.last_done_at ?? null,
+              nextDueAt: plan.next_due_at ?? null,
+              notes: plan.notes ?? null,
+              reminderConfig: plan.reminder_config ?? null,
+              isActive: plan.is_active ?? true,
+            })
+            .then(() => {
+              void Promise.all([loadFiltered(), loadSummary()]);
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     }

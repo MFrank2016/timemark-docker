@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { calculateCountdown } from '@/lib/countdown';
 import {
   annualiseSpend,
@@ -429,6 +430,33 @@ export default function Expiry() {
       await api.delete(`/expiry/${item.id}`);
       setStatus(`已删除「${item.title}」`);
       await Promise.all([loadFiltered(), loadSummary()]);
+      toast.success(`已删除「${item.title}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post('/expiry', {
+              kind: item.kind,
+              title: item.title,
+              vendor: item.vendor,
+              amountCents: item.amount_cents,
+              currency: item.currency || undefined,
+              cycle: item.cycle || undefined,
+              cycleDays: item.cycle_days,
+              startDate: item.start_date,
+              nextDueDate: item.next_due_date,
+              autoRenew: item.auto_renew,
+              notes: item.notes,
+              tags: item.tags,
+              reminderConfig: item.reminder_config,
+              isActive: item.is_active,
+            })
+            .then(() => {
+              void Promise.all([loadFiltered(), loadSummary()]);
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     }

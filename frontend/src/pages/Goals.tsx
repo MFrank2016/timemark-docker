@@ -9,6 +9,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { dueCountdownLabel, goalPercent } from '@/lib/goals-utils';
 import type { GoalStatus, GoalWithMilestones, MilestoneRecord } from '@timemark/shared';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -167,6 +168,24 @@ export default function Goals() {
       await api.delete(`/goals/${goal.id}`);
       setStatus(`已删除「${goal.title}」`);
       await refresh();
+      toast.success(`已删除「${goal.title}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post<GoalWithMilestones>('/goals', {
+              title: goal.title,
+              category: goal.category ?? null,
+              targetValue: goal.target_value ?? null,
+              unit: goal.unit ?? null,
+              targetDate: goal.target_date ?? null,
+            })
+            .then(() => {
+              void refresh();
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     } finally {

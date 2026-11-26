@@ -11,6 +11,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import {
   createHabitSchema,
   dateStringInTimeZone,
@@ -292,6 +293,27 @@ export default function Habits() {
       await api.delete(`/habits/${habit.id}`);
       setStatus(`已删除「${habit.name}」`);
       await refresh();
+      toast.success(`已删除「${habit.name}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post<HabitWithStreak>('/habits', {
+              name: habit.name,
+              icon: habit.icon ?? null,
+              targetPerPeriod: habit.target_per_period ?? undefined,
+              period: habit.period ?? undefined,
+              scheduleDays: habit.schedule_days ?? null,
+              reminderTimes: habit.reminder_times ?? null,
+              color: habit.color ?? null,
+              isActive: habit.is_active ?? true,
+            })
+            .then(() => {
+              void refresh();
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     }

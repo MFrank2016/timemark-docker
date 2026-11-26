@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { daysUntil } from '@/lib/expiry-utils';
 import {
   categoryLabel,
@@ -378,6 +379,30 @@ export default function Inventory() {
       await api.delete(`/inventory/${item.id}`);
       setStatus(`已删除「${item.name}」`);
       await Promise.all([loadFiltered(), loadSummary()]);
+      toast.success(`已删除「${item.name}」`, {
+        label: '撤销',
+        onClick: () => {
+          void api
+            .post<InventoryItem>('/inventory', {
+              name: item.name,
+              category: item.category ?? undefined,
+              quantity: item.quantity ?? undefined,
+              unit: item.unit ?? null,
+              lowStockThreshold: item.low_stock_threshold ?? null,
+              purchasedAt: item.purchased_at ?? null,
+              expiresAt: item.expires_at ?? null,
+              location: item.location ?? null,
+              notes: item.notes ?? null,
+              reminderConfig: item.reminder_config ?? null,
+              isActive: item.is_active ?? true,
+            })
+            .then(() => {
+              void Promise.all([loadFiltered(), loadSummary()]);
+              toast.info('已恢复（生成为新记录）');
+            })
+            .catch(() => toast.error('恢复失败，请重试'));
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
     }
