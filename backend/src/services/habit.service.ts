@@ -100,6 +100,21 @@ async function loadLogs(userId: number, habitId?: number): Promise<HabitLogRow[]
   return result.rows.map(mapLog);
 }
 
+/** 近 days 天日志（logged_on 为 YYYY-MM-DD 文本，cutoff 同格式字符串比较） */
+export async function listHabitLogs(
+  userId: number,
+  habitId: number,
+  days = 182,
+): Promise<Array<{ logged_on: string; count: number }>> {
+  const logs = await loadLogs(userId, habitId);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - Math.min(Math.max(days, 7), 365));
+  const cutoffYmd = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  return logs
+    .filter((log) => log.logged_on >= cutoffYmd)
+    .map((log) => ({ logged_on: log.logged_on, count: log.count }));
+}
+
 function streakFor(habit: HabitRow, logs: HabitLogRow[], now: Date, timeZone: string): HabitStreakInfo {
   const result = computeHabitStreak({
     period: habit.period,

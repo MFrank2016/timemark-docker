@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { HabitHeatmap } from '@/components/habits/HabitHeatmap';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -464,6 +465,8 @@ export default function Habits() {
                 );
               })}
             </section>
+
+            <HabitHeatmap habits={habits.map((h) => ({ id: h.id, name: h.name, icon: h.icon, streak: { current: h.streak.current, longest: h.streak.longest } }))} />
 
             {grid && grid.habits.length > 0 && (
               <section aria-label="每周打卡网格" className="glass-panel rounded-2xl p-3 ring-1 ring-black/5 dark:ring-white/10 overflow-x-auto">

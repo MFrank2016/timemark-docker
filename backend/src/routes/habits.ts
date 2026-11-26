@@ -14,6 +14,7 @@ import {
   getHabitGrid,
   getHabitStreak,
   getHabitWithStreak,
+  listHabitLogs,
   listHabits,
   logHabit,
   updateHabit,
@@ -95,6 +96,17 @@ habits.post('/', async (c) => {
   }
   const data = await createHabit(userId, parsed.data);
   return c.json({ success: true, data }, 201);
+});
+
+// 坚持热力图日志端点；注册在 /:id 之前，避免通配路由抢先匹配
+habits.get('/:id/logs', async (c) => {
+  const userId = Number(c.get('user').id);
+  const id = parseId(c.req.param('id'));
+  if (id === null) return c.json({ success: false, error: '无效的 ID' }, 400);
+  const raw = parseInt(c.req.query('days') ?? '', 10);
+  const days = Number.isFinite(raw) && raw > 0 ? raw : 182;
+  const logs = await listHabitLogs(userId, id, days);
+  return c.json({ success: true, data: logs });
 });
 
 habits.get('/:id', async (c) => {
