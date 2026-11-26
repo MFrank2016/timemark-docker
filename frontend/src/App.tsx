@@ -47,6 +47,7 @@ const TodayPage = lazy(() => import('./pages/Today'));
 const DataHealthPage = lazy(() => import('./pages/DataHealth'));
 const SharedView = lazy(() => import('./pages/SharedView'));
 const LocalAIPage = lazy(() => import('./pages/LocalAI'));
+const WeeklyReview = lazy(() => import('./pages/WeeklyReview'));
 
 function PageLoader() {
   return (
@@ -128,6 +129,7 @@ function AppRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
     <Route path="/habits" element={<ProtectedRoute pageName="HabitsPage"><HabitsPage /></ProtectedRoute>} />
     <Route path="/medications" element={<ProtectedRoute pageName="MedicationsPage"><MedicationsPage /></ProtectedRoute>} />
     <Route path="/goals" element={<ProtectedRoute pageName="GoalsPage"><GoalsPage /></ProtectedRoute>} />
+    <Route path="/weekly-review" element={<ProtectedRoute pageName="WeeklyReview"><WeeklyReview /></ProtectedRoute>} />
     {/* v2.26 C：/assistant 页删除 —— AssistantDock 已全局承载同一面板 */}
     <Route path="/agent-console" element={<ProtectedRoute pageName="AgentConsole"><AgentConsole /></ProtectedRoute>} />
     <Route path="/ask" element={<ProtectedRoute pageName="AskPage"><AskPage /></ProtectedRoute>} />

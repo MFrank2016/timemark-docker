@@ -16,6 +16,7 @@ export const en: Record<TranslationKey, string> = {
   'nav.habits': 'Habits',
   'nav.medications': 'Meds',
   'nav.goals': 'Goals',
+  'nav.weeklyReview': 'Weekly Review',
   // Four-group navigation (lib/nav-groups.ts): group titles + pages that had no entry point
   'nav.group.overview': 'Overview',
   'nav.group.reminders': 'Reminders & Notifications',

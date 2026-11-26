@@ -14,6 +14,7 @@ export const zh = {
   'nav.habits': '习惯',
   'nav.medications': '用药',
   'nav.goals': '目标',
+  'nav.weeklyReview': '本周回顾',
   // 四组导航（lib/nav-groups.ts）：分组标题 + 此前没有任何入口的页面
   'nav.group.overview': '概览',
   'nav.group.reminders': '提醒与通知',
