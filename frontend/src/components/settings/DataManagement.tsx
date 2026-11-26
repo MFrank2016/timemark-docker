@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from '@/lib/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Archive, ChevronDown, Database, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -47,6 +48,7 @@ function formatDate(iso: string): string {
 
 export function DataManagement() {
   const [data, setData] = useState<RetentionData | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [purging, setPurging] = useState(false);
   const [purgeResult, setPurgeResult] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function DataManagement() {
   }, [load]);
 
   const purgeNow = async () => {
-    if (!confirm('立即清理所有已过期日志？此操作不可恢复。')) return;
+    if (!(await confirm({ title: '立即清理所有已过期日志？此操作不可恢复。', tone: 'danger', confirmLabel: '清空' }))) return;
     setPurging(true);
     setPurgeResult(null);
     try {
@@ -207,6 +209,7 @@ export function DataManagement() {
           )}
         </div>
       </div>
-    </div>
+{confirmDialog}
+</div>
   );
 }

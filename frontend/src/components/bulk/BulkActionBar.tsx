@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Archive, CheckCheck, Loader2, Tag as TagIcon, Trash2, Shuffle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { api, listTags, type TagRecord, type TagEntityType } from '@/lib/api';
@@ -89,10 +90,11 @@ export function BulkActionBar({
   );
 
   if (count === 0) return null;
+  const { confirm, confirmDialog } = useConfirm();
 
   async function run(action: BulkAction) {
     if (action === 'delete') {
-      const confirmed = window.confirm(`确认删除选中的 ${count} 个条目？此操作不可撤销。`);
+      const confirmed = await confirm({ title: `确认删除选中的 ${count} 个条目？此操作不可撤销。`, tone: 'danger', confirmLabel: '删除' });
       if (!confirmed) return;
     }
     const params: { tagId?: number; toType?: string } = {};
@@ -229,6 +231,7 @@ export function BulkActionBar({
           ) : null}
         </div>
       ) : null}
-    </div>
+{confirmDialog}
+</div>
   );
 }

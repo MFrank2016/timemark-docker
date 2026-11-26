@@ -24,6 +24,7 @@ import { GreetingSettings } from '@/components/settings/GreetingSettings';
 import { AgentTokensSettings } from '@/components/settings/AgentTokensSettings';
 import { DataManagement } from '@/components/settings/DataManagement';
 import { buildStyledReminderEmailBodies, buildNaturalReminderText, type EmailTemplateStyle } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 function parseAlertChannels(raw: unknown): string[] {
   if (!raw) return [];
@@ -125,6 +126,7 @@ function SecretUrlField({
 export default function Settings() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { confirm, confirmDialog } = useConfirm();
   
   // Modal states
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -338,7 +340,7 @@ export default function Settings() {
 
   const clearEmailLogs = async () => {
     // v2.28 C14：文案与后端实际行为对齐（DELETE /email-logs 删除的是全部记录）
-    if (!confirm('确定清空全部邮件发送记录？此操作不可恢复。')) return;
+    if (!(await confirm({ title: '确定清空全部邮件发送记录？此操作不可恢复。', tone: 'danger', confirmLabel: '清空' }))) return;
     try {
       await api.delete('/email-logs');
       setEmailLogs([]);
@@ -426,7 +428,7 @@ export default function Settings() {
   };
 
   const revokeIcsFeed = async (id: number) => {
-    if (!confirm('撤销后公开订阅 URL 立即失效且无法恢复，确定撤销？')) return;
+    if (!(await confirm({ title: '撤销后公开订阅 URL 立即失效且无法恢复，确定撤销？', tone: 'danger', confirmLabel: '撤销' }))) return;
     try {
       await api.delete(`/calendar/ics-feeds/${id}`);
       setIcsFeeds((prev) => prev.map((f) => (f.id === id ? { ...f, revokedAt: new Date().toISOString() } : f)));
@@ -514,7 +516,7 @@ export default function Settings() {
   };
 
   const disconnectGoogleCalendar = async () => {
-    if (!confirm('确定断开 Google 日历连接？')) return;
+    if (!(await confirm({ title: '确定断开 Google 日历连接？', tone: 'danger', confirmLabel: '断开' }))) return;
     try {
       await api.delete('/calendar/google-oauth');
       setGoogleOAuth((prev) => ({ ...prev, connected: false, email: null }));
@@ -665,7 +667,7 @@ export default function Settings() {
   };
 
   const handleImportData = async (file: File) => {
-    if (!confirm('导入将合并数据到当前账户，是否继续？')) return;
+    if (!(await confirm({ title: '导入将合并数据到当前账户，是否继续？' }))) return;
     setBackupLoading(true);
     try {
       const text = await file.text();
@@ -773,7 +775,7 @@ export default function Settings() {
   };
 
   const handleLogout = async () => {
-    if (confirm('确定要退出登录吗？')) {
+    if (await confirm({ title: '确定要退出登录吗？' })) {
       await logout();
       navigate('/login');
     }
@@ -1776,6 +1778,7 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
       <MobileBottomNav />
+      {confirmDialog}
     </div>
   );
 }

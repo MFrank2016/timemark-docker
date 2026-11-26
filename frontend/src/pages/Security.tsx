@@ -50,6 +50,7 @@ import {
   removePasskey,
   type PasskeyCredential,
 } from '@/lib/webauthn';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface SessionRow {
   id: number;
@@ -62,6 +63,7 @@ interface SessionRow {
 
 export default function Security() {
   const navigate = useNavigate();
+  const { confirm, confirmDialog } = useConfirm();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [ipBans, setIpBans] = useState<any[]>([]);
@@ -118,7 +120,7 @@ export default function Security() {
   useEffect(() => { load(); }, []);
 
   const revokeSession = async (id: number) => {
-    if (!confirm('确定踢出该设备？')) return;
+    if (!(await confirm({ title: '确定踢出该设备？', tone: 'danger', confirmLabel: '踢出' }))) return;
     await api.delete(`/security/sessions/${id}`);
     load();
   };
@@ -170,7 +172,7 @@ export default function Security() {
   };
 
   const disableTotp = async () => {
-    if (!confirm('确定关闭双因素认证？关闭后登录只需用户名和密码，账号安全性会降低。')) return;
+    if (!(await confirm({ title: '确定关闭双因素认证？关闭后登录只需用户名和密码，账号安全性会降低。', tone: 'danger', confirmLabel: '关闭' }))) return;
     setRecoveryBusy(true);
     try {
       await api.post('/security/totp/disable', { password: recoveryPassword, code: totpCode });
@@ -210,7 +212,7 @@ export default function Security() {
   };
 
   const handleRemovePasskey = async (id: string) => {
-    if (!confirm('确定删除此 Passkey？')) return;
+    if (!(await confirm({ title: '确定删除此 Passkey？', tone: 'danger', confirmLabel: '删除' }))) return;
     try {
       await removePasskey(id);
       load();
@@ -482,6 +484,7 @@ export default function Security() {
         <AuditTrailCard />
       </main>
       <MobileBottomNav />
+      {confirmDialog}
     </div>
   );
 }

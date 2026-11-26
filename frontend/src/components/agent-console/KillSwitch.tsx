@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Power, RotateCcw, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
   isPausedGlobally,
@@ -27,13 +28,14 @@ export interface KillSwitchProps {
  */
 export function KillSwitch({ routines, aiEnabled, workerCount, onChanged }: KillSwitchProps) {
   const [busy, setBusy] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
   const [feedback, setFeedback] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const enabledCount = routines.filter((routine) => routine.enabled).length;
   const remembered = readPausedRoutineIds();
   const paused = isPausedGlobally(routines) || (remembered.length > 0 && enabledCount === 0);
 
   async function pause() {
-    if (!window.confirm(`确定暂停全部例行任务？将停用 ${enabledCount} 个已启用任务，后台 AI 将不再产生新的调度工作。`)) return;
+    if (!(await confirm({ title: `确定暂停全部例行任务？将停用 ${enabledCount} 个已启用任务，后台 AI 将不再产生新的调度工作。`, tone: 'danger', confirmLabel: '暂停' }))) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -112,6 +114,7 @@ export function KillSwitch({ routines, aiEnabled, workerCount, onChanged }: Kill
           {feedback.text}
         </p>
       )}
-    </section>
+{confirmDialog}
+</section>
   );
 }

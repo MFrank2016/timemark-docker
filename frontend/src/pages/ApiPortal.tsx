@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * v2.30 方向 B：API 门户 —— 对外 REST API 的 Token 管理与文档页。
@@ -54,6 +55,7 @@ export default function ApiPortal() {
   const [newScopes, setNewScopes] = useState<string[]>(['read']);
   const [freshToken, setFreshToken] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = () => {
     setLoading(true);
@@ -105,7 +107,7 @@ export default function ApiPortal() {
   };
 
   const revokeToken = async (id: string) => {
-    if (!confirm('确定回收该 Token？使用它的集成将立即失效，且不可恢复。')) return;
+    if (!(await confirm({ title: '确定回收该 Token？使用它的集成将立即失效，且不可恢复。', tone: 'danger', confirmLabel: '回收' }))) return;
     try {
       await api.post(`/agent-tokens/${id}/revoke`, {});
       load();
@@ -281,6 +283,7 @@ export default function ApiPortal() {
           )}
         </section>
       </main>
+      {confirmDialog}
     </div>
   );
 }

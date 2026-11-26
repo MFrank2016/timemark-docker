@@ -51,6 +51,7 @@ import type {
   RefillItem,
   TodayDose,
 } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 家庭用药页（D3，checkbox 75）。
@@ -335,6 +336,7 @@ export default function Medications() {
 
   const [reportFormat, setReportFormat] = useState<'html' | 'csv' | 'pdf'>('html');
   const [downloading, setDownloading] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
 
   const today = dateStringInTimeZone(new Date(), timezone);
   const profileQuery = profileId != null ? `&profileId=${profileId}` : '';
@@ -520,7 +522,7 @@ export default function Medications() {
   };
 
   const remove = async (med: MedicationRecord) => {
-    if (!window.confirm(`确定删除「${med.name}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${med.name}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/medications/${med.id}`);
@@ -1279,6 +1281,7 @@ export default function Medications() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Timer, Play, Loader2 } from 'lucide-react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface CronLog {
   job_name: string;
@@ -26,6 +27,7 @@ export default function CronMonitor() {
   // v2.30：手动运行状态
   const [runningJob, setRunningJob] = useState<string | null>(null);
   const [runNotice, setRunNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = () => {
     setLoading(true);
@@ -61,7 +63,7 @@ export default function CronMonitor() {
   }, [recent]);
 
   const runNow = async (job: string) => {
-    if (!confirm(`立即运行任务 ${job}？`)) return;
+    if (!(await confirm({ title: `立即运行任务 ${job}？` }))) return;
     setRunningJob(job);
     setRunNotice(null);
     try {
@@ -185,6 +187,7 @@ export default function CronMonitor() {
         ))}
         {!loading && recent.length === 0 && <EmptyState icon={Timer} title="暂无 Cron 执行记录" />}
       </div>
+      {confirmDialog}
     </div>
   );
 }

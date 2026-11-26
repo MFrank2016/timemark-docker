@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BellRing, Monitor, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { api } from '@/lib/api';
 import {
@@ -26,6 +27,7 @@ interface PushDevice {
  */
 export function WebPushToggle() {
   const [state, setState] = useState<WebPushState | 'loading'>('loading');
+  const { confirm, confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [devices, setDevices] = useState<PushDevice[] | null>(null);
@@ -148,7 +150,7 @@ export function WebPushToggle() {
                     className="shrink-0 text-slate-400 hover:text-red-500 transition disabled:opacity-50"
                     disabled={busy}
                     onClick={async () => {
-                      if (!confirm('移除该设备的推送订阅？')) return;
+                      if (!(await confirm({ title: '移除该设备的推送订阅？', tone: 'danger', confirmLabel: '移除' }))) return;
                       setBusy(true);
                       try {
                         await api.delete(`/push/subscriptions/${d.id}`);
@@ -169,6 +171,7 @@ export function WebPushToggle() {
         )}
         {message && <p className="text-xs text-slate-500 dark:text-slate-400">{message}</p>}
       </div>
-    </section>
+{confirmDialog}
+</section>
   );
 }

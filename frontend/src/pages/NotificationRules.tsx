@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
 import { NOTIFICATION_PRESET_LIST } from '@timemark/shared/notification-presets';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface ConditionalRule {
   id: number;
@@ -39,6 +40,7 @@ export default function NotificationRules() {
   const [daysBefore, setDaysBefore] = useState('7');
   const [selectedChannels, setSelectedChannels] = useState<string[]>(['email']);
   const [loading, setLoading] = useState(true);
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -75,7 +77,7 @@ export default function NotificationRules() {
   };
 
   const removeRule = async (id: number) => {
-    if (!confirm('删除该规则？')) return;
+    if (!(await confirm({ title: '删除该规则？', tone: 'danger', confirmLabel: '删除' }))) return;
     await api.delete(`/conditional-rules/${id}`);
     await load();
   };
@@ -192,6 +194,7 @@ export default function NotificationRules() {
           })}
         </ul>
       )}
+      {confirmDialog}
     </div>
   );
 }

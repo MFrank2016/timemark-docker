@@ -23,6 +23,7 @@ import { fetchChannelTemplates, type CloudChannelTemplate } from '@/lib/channel-
 import { ChannelIcon } from '@/components/channels/ChannelIcon';
 import { ChannelQr } from '@/components/channels/ChannelQr';
 import type { NotificationAccount } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 // Channel configuration method types (cloud deploy: webhook + token only)
 type ConfigMethod = 'webhook' | 'token';
@@ -115,6 +116,7 @@ export default function Channels() {
   // v2.25: 修复向导——暂停徽章的第二个动作（第一个是立即恢复）
   const [repairAccountId, setRepairAccountId] = useState<number | null>(null);
   const [statsRuns, setStatsRuns] = useState(0);
+  const { confirm, confirmDialog } = useConfirm();
 
   const fetchStats = () => {
     api.get<{ windowDays: number; runs: number; channels: Array<{ channel: string; sent: number; ok: number; failed: number; successRate: number }>; accounts?: Array<{ accountId: number; sent: number; ok: number; failed: number; successRate: number }> }>('/channels/stats')
@@ -601,7 +603,7 @@ export default function Channels() {
   };
 
   const deleteAccount = async (account: Account) => {
-    if (!confirm(`确定要删除 ${account.name} 吗？`)) return;
+    if (!(await confirm({ title: `确定要删除 ${account.name} 吗？`, tone: 'danger', confirmLabel: '删除' }))) return;
     
     try {
       await api.delete(`/config/accounts/${account.id}`);
@@ -1682,6 +1684,7 @@ export default function Channels() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </motion.div>
   );
 }

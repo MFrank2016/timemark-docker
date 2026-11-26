@@ -50,6 +50,7 @@ import { useTodoCompletions } from "@/hooks/useTodoCompletions";
 import { AlmanacCard } from "@/components/almanac/AlmanacCard";
 import { TimeMachineCard } from "@/components/dashboard/TimeMachineCard";
 import { RecentNotificationsCard } from "@/components/dashboard/RecentNotifications";
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -79,6 +80,7 @@ export function Dashboard() {
   const [editingEvent, setEditingEvent] = useState<Event | undefined>();
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { confirm, confirmDialog } = useConfirm();
   // 倒计时排序：默认从近到远（升序），点击切换为从远到近。
   const [sortDesc, setSortDesc] = useState(false);
   const [conflicts, setConflicts] = useState<
@@ -220,7 +222,7 @@ export function Dashboard() {
     setShowForm(true);
   };
   const handleDelete = async (id: string) => {
-    if (confirm("确定删除此事件？")) {
+    if (await confirm({ title: "确定删除此事件？", tone: "danger", confirmLabel: "删除" })) {
       await deleteEvent(id);
       setShowForm(false);
       setEditingEvent(undefined);
@@ -251,9 +253,9 @@ export function Dashboard() {
             return `${ch}${emails}`;
           })
           .join("\n");
-        const goLogs = confirm(
-          `测试通知已发出：\n${detail}\n\n邮件渠道若使用 Resend 测试地址，仅可发到注册邮箱；请检查垃圾箱。\n\n点击「确定」打开提醒日志查看详情。`,
-        );
+        const goLogs = await confirm({
+          title: `测试通知已发出：\n${detail}\n\n邮件渠道若使用 Resend 测试地址，仅可发到注册邮箱；请检查垃圾箱。\n\n点击「确定」打开提醒日志查看详情。`,
+        });
         if (goLogs) navigate("/trigger-logs");
       }
     } catch (error) {
@@ -267,7 +269,7 @@ export function Dashboard() {
   const handleBatchDelete = async () => {
     if (selectedIds.length === 0) return;
     try {
-      if (confirm(`确定批量删除 ${selectedIds.length} 个事件？`)) {
+      if (await confirm({ title: `确定批量删除 ${selectedIds.length} 个事件？`, tone: "danger", confirmLabel: "删除" })) {
         const deletedCount = await deleteEventsBatch(selectedIds);
         toast.success(`成功删除 ${deletedCount} 个事件`);
         setSelectedIds([]);
@@ -949,6 +951,7 @@ export function Dashboard() {
         event={editingEvent}
       />
       <MobileBottomNav />
+      {confirmDialog}
     </motion.div>
   );
 }

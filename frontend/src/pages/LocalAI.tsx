@@ -16,6 +16,7 @@ import {
   type WebLlmTierId,
 } from '@/lib/local-ai/models';
 import { clearChatHistory, loadChatHistory, saveChatHistory } from '@/lib/local-ai/chat-history-db';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 type HistoryEntry = {
   question: string;
@@ -63,6 +64,7 @@ export function LocalAI() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const historyRef = useRef<HTMLDivElement | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     void (async () => {
@@ -89,7 +91,7 @@ export function LocalAI() {
   }, [history]);
 
   const handleClearHistory = useCallback(async () => {
-    if (!confirm('清空本地对话记录？')) return;
+    if (!(await confirm({ title: '清空本地对话记录？', tone: 'danger', confirmLabel: '清空' }))) return;
     await clearChatHistory().catch(() => undefined);
     setHistory([]);
   }, []);
@@ -421,6 +423,7 @@ export function LocalAI() {
 
         <GreetingDraftTool device={device} tier={tier} onStatus={(msg, p) => { setModelStatus(msg); setModelProgress(typeof p === 'number' ? p : null); }} onDone={() => { setModelProgress(null); setModelStatus(''); }} />
       </main>
+      {confirmDialog}
     </div>
   );
 }

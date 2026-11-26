@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
 import { dueCountdownLabel, goalPercent } from '@/lib/goals-utils';
 import type { GoalStatus, GoalWithMilestones, MilestoneRecord } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 目标与里程碑（plan todo 82，消费 checkbox 81 的 /api/goals）。
@@ -76,6 +77,7 @@ export default function Goals() {
   // v2.27 F43：排序键 + 方向（服务端 ?sort=/order= 支持）
   const [sortBy, setSortBy] = useState<'created_at' | 'title' | 'status'>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
     const list = await api.get<GoalWithMilestones[]>(`/goals?sort=${sortBy}&order=${sortOrder}`);
@@ -158,7 +160,7 @@ export default function Goals() {
   };
 
   const remove = async (goal: GoalWithMilestones) => {
-    if (!window.confirm(`确定删除「${goal.title}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${goal.title}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     setBusyId(goal.id);
     try {
@@ -526,6 +528,7 @@ export default function Goals() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

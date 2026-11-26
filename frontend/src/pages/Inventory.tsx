@@ -27,6 +27,7 @@ import {
   type CreateInventoryItemInput,
   type InventoryCategory,
 } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 库存（D12，todo 51）。全部请求走既有 fetch 封装；形状对齐 backend 的 `/api/inventory`。
@@ -236,6 +237,7 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -370,7 +372,7 @@ export default function Inventory() {
   };
 
   const remove = async (item: InventoryItem) => {
-    if (!window.confirm(`确定删除「${item.name}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${item.name}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/inventory/${item.id}`);
@@ -640,6 +642,7 @@ export default function Inventory() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

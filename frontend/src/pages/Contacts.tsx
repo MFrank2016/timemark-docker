@@ -31,6 +31,7 @@ import {
   formatLabeledList,
   contactHasAnyEmail,
 } from '@/lib/contact-utils';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface FixedContact {
   id: number;
@@ -136,6 +137,7 @@ export default function Contacts() {
   const [importing, setImporting] = useState(false);
   const [dueIds, setDueIds] = useState<Set<number>>(new Set());
   const [detailContact, setDetailContact] = useState<FixedContact | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const loadContacts = async () => {
     const data = await api.get<FixedContact[]>('/contacts');
@@ -283,7 +285,7 @@ export default function Contacts() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('确定删除该联系人？')) return;
+    if (!(await confirm({ title: '确定删除该联系人？', tone: 'danger', confirmLabel: '删除' }))) return;
     await api.delete(`/contacts/${id}`);
     await loadContacts();
   };
@@ -745,6 +747,7 @@ export default function Contacts() {
           void loadDue();
         }}
       />
+      {confirmDialog}
     </div>
   );
 }

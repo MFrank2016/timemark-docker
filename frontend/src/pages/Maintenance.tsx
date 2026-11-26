@@ -28,6 +28,7 @@ import {
   type CreateMaintenancePlanInput,
   type UsageUnit,
 } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 保养（D12，todo 51）。全部请求走既有 fetch 封装；形状对齐 backend 的 `/api/maintenance`。
@@ -272,6 +273,7 @@ export default function Maintenance() {
   const [logSaving, setLogSaving] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -379,7 +381,7 @@ export default function Maintenance() {
   };
 
   const remove = async (plan: MaintenancePlan) => {
-    if (!window.confirm(`确定删除「${plan.asset_name}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${plan.asset_name}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/maintenance/${plan.id}`);
@@ -766,6 +768,7 @@ export default function Maintenance() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

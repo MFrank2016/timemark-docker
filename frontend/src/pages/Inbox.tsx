@@ -9,6 +9,7 @@ import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { ChannelQr } from '@/components/channels/ChannelQr';
 import { api } from '@/lib/api';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } as const } };
@@ -60,6 +61,7 @@ export default function Inbox() {
   const [copiedLabel, setCopiedLabel] = useState('');
   const [receiveUrl, setReceiveUrl] = useState<string | null>(null);
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     api.get<{ receiveUrl: string | null; retentionDays: number }>('/inbox/info')
@@ -136,7 +138,7 @@ export default function Inbox() {
   };
 
   const deleteMessage = async (id: number) => {
-    if (!confirm('确定删除此消息？')) return;
+    if (!(await confirm({ title: '确定删除此消息？', tone: 'danger', confirmLabel: '删除' }))) return;
     try {
       await api.delete(`/inbox/${id}`);
       const removed = messages.find((m) => m.id === id);
@@ -161,7 +163,7 @@ export default function Inbox() {
 
   const batchRun = async (op: 'read' | 'delete') => {
     if (selectedIds.size === 0) return;
-    if (op === 'delete' && !confirm(`确定删除选中的 ${selectedIds.size} 条消息？`)) return;
+    if (op === 'delete' && !(await confirm({ title: `确定删除选中的 ${selectedIds.size} 条消息？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setBatchBusy(true);
     setActionError('');
     try {
@@ -393,6 +395,7 @@ export default function Inbox() {
           </div>
         )}
       </main>
+      {confirmDialog}
     </motion.div>
   );
 }

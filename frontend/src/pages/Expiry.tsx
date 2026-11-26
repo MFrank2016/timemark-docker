@@ -27,6 +27,7 @@ import {
 } from '@/lib/expiry-utils';
 import { createExpiryItemSchema, EXPIRY_CYCLES, EXPIRY_KINDS } from '@timemark/shared';
 import type { CreateExpiryItemInput, ExpiryCycle, ExpiryItemKind } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /** 到期中心（D1，todo 47）。全部请求走既有 fetch 封装；形状对齐 backend 的 `/api/expiry`。 */
 
@@ -290,6 +291,7 @@ export default function Expiry() {
   const [saving, setSaving] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -421,7 +423,7 @@ export default function Expiry() {
   };
 
   const remove = async (item: ExpiryItem) => {
-    if (!window.confirm(`确定删除「${item.title}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${item.title}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/expiry/${item.id}`);
@@ -749,6 +751,7 @@ export default function Expiry() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

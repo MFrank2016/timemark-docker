@@ -39,6 +39,7 @@ import {
   type CreateDocumentInput,
   type DocumentKind,
 } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 证件保险箱（D2，todo 56）。全部请求走既有 fetch 封装；形状对齐 backend 的
@@ -350,6 +351,7 @@ export default function Documents() {
   const [revealing, setRevealing] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -505,7 +507,7 @@ export default function Documents() {
   };
 
   const remove = async (item: DocumentItem) => {
-    if (!window.confirm(`确定删除「${item.title}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${item.title}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/documents/${item.id}`);
@@ -909,6 +911,7 @@ export default function Documents() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

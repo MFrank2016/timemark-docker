@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface EventTemplate {
   id: number;
@@ -29,6 +30,7 @@ export default function Templates() {
   const [formData, setFormData] = useState({ event_type: '', template_content: '' });
   const [debouncedPreview, setDebouncedPreview] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   // Debounced preview update
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function Templates() {
   };
 
   const handleDelete = async (eventType: string) => {
-    if (!confirm('确定要删除此模板吗？')) return;
+    if (!(await confirm({ title: '确定要删除此模板吗？', tone: 'danger', confirmLabel: '删除' }))) return;
     
     try {
       await api.delete(`/config/templates/${eventType}`);
@@ -298,6 +300,7 @@ export default function Templates() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </motion.div>
   );
 }

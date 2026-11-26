@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from '@/lib/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Plus, Trash2, Pencil, Bell, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profile.store';
@@ -29,6 +30,7 @@ export function ProfileSettings() {
   const { profiles, load } = useProfileStore();
 
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const { confirm, confirmDialog } = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProfileRecord | null>(null);
   const [saving, setSaving] = useState(false);
@@ -95,7 +97,7 @@ export function ProfileSettings() {
   };
 
   const handleDelete = async (profile: ProfileRecord) => {
-    if (!window.confirm(`确定删除档案「${profile.name}」？关联数据会保留，只是不再归属该档案。`)) return;
+    if (!(await confirm({ title: `确定删除档案「${profile.name}」？关联数据会保留，只是不再归属该档案。`, tone: 'danger', confirmLabel: '删除' }))) return;
     try {
       await api.delete(`/profiles/${profile.id}`);
       if (routingProfile?.id === profile.id) setRoutingProfile(null);
@@ -246,6 +248,7 @@ export function ProfileSettings() {
           </div>
         </div>
       )}
-    </section>
+{confirmDialog}
+</section>
   );
 }

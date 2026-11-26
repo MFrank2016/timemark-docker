@@ -24,6 +24,7 @@ import type {
   HabitPeriod,
   HabitWithStreak,
 } from '@timemark/shared';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * 习惯打卡（D6，plan 66）。
@@ -135,6 +136,7 @@ export default function Habits() {
   const [form, setForm] = useState<HabitForm>(emptyForm());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
 
   /** 用户时区的今天：优先用后端返回的 streak.today；无习惯时退回本地时区换算。 */
   const today = useMemo(() => {
@@ -221,7 +223,7 @@ export default function Habits() {
       setStatus('今日全部达标，无需打卡 🎉');
       return;
     }
-    if (!confirm(`一键打卡 ${due.length} 个未达标的习惯？`)) return;
+    if (!(await confirm({ title: `一键打卡 ${due.length} 个未达标的习惯？` }))) return;
     setBulkLogging(true);
     setError('');
     try {
@@ -284,7 +286,7 @@ export default function Habits() {
   };
 
   const remove = async (habit: HabitWithStreak) => {
-    if (!window.confirm(`确定删除「${habit.name}」？`)) return;
+    if (!(await confirm({ title: `确定删除「${habit.name}」？`, tone: 'danger', confirmLabel: '删除' }))) return;
     setError('');
     try {
       await api.delete(`/habits/${habit.id}`);
@@ -634,6 +636,7 @@ export default function Habits() {
           </div>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

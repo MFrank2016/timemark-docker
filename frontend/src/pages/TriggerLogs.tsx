@@ -13,6 +13,7 @@ import { readDelivery, type DeliveryOutcome } from '@timemark/shared';
 import { ChannelIcon } from '@/components/channels/ChannelIcon';
 import { fetchChannelTemplates } from '@/lib/channel-templates';
 import { EventReminderLogs } from '@/components/reminder/EventReminderLogs';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 /**
  * v2.26 C：/reminders（提醒记录）并入本页 —— 两个页面展示的是同一类数据
@@ -105,6 +106,7 @@ export default function TriggerLogs() {
   const [clearing, setClearing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
+  const { confirm, confirmDialog } = useConfirm();
 
   const switchTab = (next: LogsTab) => {
     setTab(next);
@@ -168,7 +170,7 @@ export default function TriggerLogs() {
   };
 
   const clearLogs = async () => {
-    if (!confirm('确定清空所有提醒日志？此操作不可恢复。')) return;
+    if (!(await confirm({ title: '确定清空所有提醒日志？此操作不可恢复。', tone: 'danger', confirmLabel: '清空' }))) return;
 
     setClearing(true);
     try {
@@ -235,7 +237,7 @@ export default function TriggerLogs() {
 
   // v79 批量重试：把近 7 天真实失败（含部分失败）的提醒一次性逐条补发（后端单次上限 10 条）
   const retryAllFailed = async () => {
-    if (!confirm('将把近 7 天内失败/部分失败的提醒逐条重新发送（单次最多 10 条），继续？')) return;
+    if (!(await confirm({ title: '将把近 7 天内失败/部分失败的提醒逐条重新发送（单次最多 10 条），继续？' }))) return;
     setRetryingAll(true);
     try {
       const res = await api.post<{ attempted: number; retried: number; failed: number; candidates: number }>(
@@ -503,6 +505,7 @@ export default function TriggerLogs() {
         )}
       </main>
       )}
+      {confirmDialog}
     </motion.div>
   );
 }
