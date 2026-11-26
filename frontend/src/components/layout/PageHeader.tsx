@@ -49,8 +49,8 @@ export function PageHeader({
 
   return (
     <header className={`sticky top-2 md:top-6 z-40 px-4 mb-4 md:mb-6 ${maxWidth ?? 'max-w-4xl'} mx-auto ${className ?? ''}`}>
-      <div className="glass-panel rounded-full px-6 py-3.5 flex justify-between items-center gap-3 ring-1 ring-black/5 dark:ring-white/10 shadow-xs">
-        <div className="flex items-center gap-4 min-w-0">
+      <div className="glass-panel rounded-[2rem] px-6 py-3.5 flex flex-wrap justify-between items-center gap-x-3 gap-y-2 ring-1 ring-black/5 dark:ring-white/10 shadow-xs">
+        <div className="flex items-center gap-4 min-w-[10rem] flex-1">
           <Button
             variant="ghost"
             size="icon"
@@ -65,7 +65,7 @@ export function PageHeader({
             {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">{subtitle}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 max-w-full">
           {actions}
           {onRefresh && (
             <Button

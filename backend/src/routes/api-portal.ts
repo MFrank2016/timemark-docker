@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { query } from '../db/index.js';
+import { openApiSpec } from './api-portal.openapi.js';
 import { resolveAgentTokenCredential } from '../services/agent-tokens.service.js';
 import { writeAgentAudit } from '../services/agent-tokens.service.js';
 import { checkAgentRateLimit } from '../services/agent/rate-limit.service.js';
@@ -108,6 +109,9 @@ function parseLimit(raw: string | undefined): number {
 // ---------------------------------------------------------------------------
 // 只读端点（read scope）
 // ---------------------------------------------------------------------------
+
+// 公开 OpenAPI 3.1 规范（无需 token——spec 本身无敏感数据）
+apiV1.get('/openapi.json', (c) => c.json(openApiSpec as unknown as Record<string, unknown>));
 
 apiV1.get('/events', async (c) => {
   const started = Date.now();

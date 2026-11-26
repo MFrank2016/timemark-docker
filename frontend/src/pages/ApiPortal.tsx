@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { toast } from '@/lib/toast';
 
 /**
  * v2.30 方向 B：API 门户 —— 对外 REST API 的 Token 管理与文档页。
@@ -258,6 +259,26 @@ export default function ApiPortal() {
             </div>
           </div>
         </section>
+
+        {/* OpenAPI 3.1 规范——机器可读文档 */}
+        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold text-slate-500 flex-1 min-w-[12rem]">
+            OpenAPI 3.1 规范：上述端点的机器可读定义（可导入 Postman / 生成 SDK）
+          </p>
+          <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer" className="text-xs font-mono text-primary-600 dark:text-primary-400 hover:underline">
+            在线查看 /api/v1/openapi.json
+          </a>
+          <Button size="sm" variant="outline" aria-label="下载 OpenAPI 规范" onClick={async () => {
+            try {
+              const res = await fetch('/api/v1/openapi.json');
+              const blob = new Blob([JSON.stringify(await res.json(), null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = 'timemark-openapi.json'; a.click();
+              URL.revokeObjectURL(url);
+            } catch (e) { toast.error(e instanceof Error ? e.message : '下载失败'); }
+          }}>下载 .json</Button>
+        </div>
 
         {/* 最近调用 */}
         <section>
